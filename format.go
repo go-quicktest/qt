@@ -1,6 +1,6 @@
 // Licensed under the MIT license, see LICENSE file for details.
 
-package quicktest
+package qt
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ import (
 
 // Format formats the given value as a string. It is used to print values in
 // test failures unless that's changed by calling C.SetFormat.
-func Format(v interface{}) string {
+func Format(v any) string {
 	switch v := v.(type) {
 	case error:
 		s, ok := checkStringCall(v, v.Error)
@@ -50,7 +50,7 @@ func Format(v interface{}) string {
 	return fmt.Sprintf("%# v", pretty.Formatter(v))
 }
 
-func byteSlice(x interface{}) ([]byte, bool) {
+func byteSlice(x any) ([]byte, bool) {
 	v := reflect.ValueOf(x)
 	if !v.IsValid() {
 		return nil, false
@@ -73,7 +73,7 @@ func quoteString(s string) string {
 // checkStringCall calls f and returns its result, and reports if the call
 // succeeded without panicking due to a nil pointer.
 // If f panics and v is a nil pointer, it returns false.
-func checkStringCall(v interface{}, f func() string) (s string, ok bool) {
+func checkStringCall(v any, f func() string) (s string, ok bool) {
 	defer func() {
 		err := recover()
 		if err == nil {
@@ -88,4 +88,4 @@ func checkStringCall(v interface{}, f func() string) (s string, ok bool) {
 	return f(), true
 }
 
-type formatFunc func(interface{}) string
+type formatFunc func(any) string

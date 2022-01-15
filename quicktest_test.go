@@ -1,6 +1,6 @@
-// Licensed under the MIT license, see LICENSE file for details.
+// Licensed under the MIT license, see LICENCE file for details.
 
-package quicktest_test
+package qt_test
 
 import (
 	"bytes"
@@ -9,28 +9,29 @@ import (
 	"strings"
 	"testing"
 
-	qt "github.com/frankban/quicktest"
+	"github.com/go-quicktest/qt"
 )
 
-var _ testing.TB = (*qt.C)(nil)
-
-var cTests = []struct {
+type qtTest[T any] struct {
 	about           string
-	checker         qt.Checker
-	got             interface{}
-	args            []interface{}
-	format          func(interface{}) string
+	checker         qt.Checker[T]
+	got             T
+	comment         []qt.Comment
 	expectedFailure string
-}{{
+}
+
+type testRunner interface {
+	run(t *testing.T)
+}
+
+var qtTests = []testRunner{qtTest[int]{
 	about:   "success",
-	checker: qt.Equals,
+	checker: qt.Equals(42),
 	got:     42,
-	args:    []interface{}{42},
-}, {
+}, qtTest[string]{
 	about:   "failure",
-	checker: qt.Equals,
+	checker: qt.Equals("47"),
 	got:     "42",
-	args:    []interface{}{"47"},
 	expectedFailure: `
 error:
   values are not equal
@@ -39,11 +40,10 @@ got:
 want:
   "47"
 `,
-}, {
+}, qtTest[string]{
 	about:   "failure with % signs",
-	checker: qt.Equals,
+	checker: qt.Equals("47%y"),
 	got:     "42%x",
-	args:    []interface{}{"47%y"},
 	expectedFailure: `
 error:
   values are not equal
@@ -52,11 +52,11 @@ got:
 want:
   "47%y"
 `,
-}, {
+}, qtTest[bool]{
 	about:   "failure with comment",
-	checker: qt.Equals,
+	checker: qt.Equals(false),
 	got:     true,
-	args:    []interface{}{false, qt.Commentf("apparently %v != %v", true, false)},
+	comment: []qt.Comment{qt.Commentf("apparently %v != %v", true, false)},
 	expectedFailure: `
 error:
   values are not equal
@@ -67,11 +67,11 @@ got:
 want:
   bool(false)
 `,
-}, {
+}, qtTest[any]{
 	about:   "another failure with comment",
 	checker: qt.IsNil,
 	got:     42,
-	args:    []interface{}{qt.Commentf("bad wolf: %d", 42)},
+	comment: []qt.Comment{qt.Commentf("bad wolf: %d", 42)},
 	expectedFailure: `
 error:
   got non-nil value
@@ -80,11 +80,11 @@ comment:
 got:
   int(42)
 `,
-}, {
+}, qtTest[any]{
 	about:   "failure with constant comment",
 	checker: qt.IsNil,
 	got:     "something",
-	args:    []interface{}{qt.Commentf("these are the voyages")},
+	comment: []qt.Comment{qt.Commentf("these are the voyages")},
 	expectedFailure: `
 error:
   got non-nil value
@@ -93,101 +93,29 @@ comment:
 got:
   "something"
 `,
-}, {
+}, qtTest[any]{
 	about:   "failure with empty comment",
 	checker: qt.IsNil,
 	got:     47,
-	args:    []interface{}{qt.Commentf("")},
+	comment: []qt.Comment{qt.Commentf("")},
 	expectedFailure: `
 error:
   got non-nil value
 got:
   int(47)
 `,
-}, {
+}, qtTest[int]{
 	about: "nil checker",
 	expectedFailure: `
 error:
   bad check: nil checker provided
 `,
-}, {
-	about:   "not enough arguments",
-	checker: qt.Equals,
-	got:     42,
-	args:    []interface{}{},
-	expectedFailure: `
-error:
-  bad check: not enough arguments provided to checker: got 0, want 1
-want args:
-  want
-`,
-}, {
-	about:   "not enough arguments with comment",
-	checker: qt.DeepEquals,
-	got:     42,
-	args:    []interface{}{qt.Commentf("test %d", 0)},
-	expectedFailure: `
-error:
-  bad check: not enough arguments provided to checker: got 0, want 1
-comment:
-  test 0
-want args:
-  want
-`,
-}, {
-	about:   "too many arguments",
-	checker: qt.Matches,
-	got:     42,
-	args:    []interface{}{42, 47},
-	expectedFailure: `
-error:
-  bad check: too many arguments provided to checker: got 2, want 1
-got args:
-  []interface {}{
-      int(42),
-      int(47),
-  }
-want args:
-  regexp
-`,
-}, {
-	about:   "really too many arguments",
-	checker: qt.DeepEquals,
-	got:     42,
-	args:    []interface{}{42, 47, nil, "stop"},
-	expectedFailure: `
-error:
-  bad check: too many arguments provided to checker: got 4, want 1
-got args:
-  []interface {}{
-      int(42),
-      int(47),
-      nil,
-      "stop",
-  }
-want args:
-  want
-`,
-}, {
-	about:   "too many arguments with comment",
-	checker: qt.IsNil,
-	got:     42,
-	args:    []interface{}{nil, qt.Commentf("these are the voyages")},
-	expectedFailure: `
-error:
-  bad check: too many arguments provided to checker: got 1, want 0
-comment:
-  these are the voyages
-got args:
-  []interface {}{
-      nil,
-  }
-`,
-}, {
+}, qtTest[int]{
 	about: "many arguments and notes",
-	checker: &testingChecker{
-		argNames: []string{"arg1", "arg2", "arg3"},
-		addNotes: func(note func(key string, value interface{})) {
+	checker: &testingChecker[int]{
+		paramNames: []string{"arg1", "arg2", "arg3"},
+		args:       []any{"val2", "val3"},
+		addNotes: func(note func(key string, value any)) {
 			note("note1", "these")
 			note("note2", qt.Unquoted("are"))
 			note("note3", "the")
@@ -196,8 +124,7 @@ got args:
 		},
 		err: errors.New("bad wolf"),
 	},
-	got:  42,
-	args: []interface{}{"val2", "val3"},
+	got: 42,
 	expectedFailure: `
 error:
   bad wolf
@@ -218,11 +145,12 @@ arg2:
 arg3:
   "val3"
 `,
-}, {
+}, qtTest[string]{
 	about: "many arguments and notes with the same value",
-	checker: &testingChecker{
-		argNames: []string{"arg1", "arg2", "arg3", "arg4"},
-		addNotes: func(note func(key string, value interface{})) {
+	checker: &testingChecker[string]{
+		paramNames: []string{"arg1", "arg2", "arg3", "arg4"},
+		args:       []any{"value1", []int{42}, nil},
+		addNotes: func(note func(key string, value any)) {
 			note("note1", "value1")
 			note("note2", []int{42})
 			note("note3", "value1")
@@ -230,8 +158,7 @@ arg3:
 		},
 		err: errors.New("bad wolf"),
 	},
-	got:  "value1",
-	args: []interface{}{"value1", []int{42}, nil},
+	got: "value1",
 	expectedFailure: `
 error:
   bad wolf
@@ -252,73 +179,35 @@ arg3:
 arg4:
   <same as "note4">
 `,
-}, {
-	about: "many arguments and notes with custom format function",
-	checker: &testingChecker{
-		argNames: []string{"arg1", "arg2", "arg3"},
-		addNotes: func(note func(key string, value interface{})) {
-			note("note1", "these")
-			note("note2", qt.Unquoted("are"))
-			note("note3", "the")
-			note("note4", "voyages")
-			note("note5", true)
-		},
-		err: errors.New("bad wolf"),
-	},
-	got:  42,
-	args: []interface{}{"val2", "val3"},
-	format: func(v interface{}) string {
-		return fmt.Sprintf("bad wolf %v", v)
-	},
-	expectedFailure: `
-error:
-  bad wolf
-note1:
-  bad wolf these
-note2:
-  are
-note3:
-  bad wolf the
-note4:
-  bad wolf voyages
-note5:
-  bad wolf true
-arg1:
-  bad wolf 42
-arg2:
-  bad wolf val2
-arg3:
-  bad wolf val3
-`,
-}, {
+}, qtTest[int]{
 	about: "bad check with notes",
-	checker: &testingChecker{
-		argNames: []string{"got", "want"},
-		addNotes: func(note func(key string, value interface{})) {
+	checker: &testingChecker[int]{
+		paramNames: []string{"got", "want"},
+		addNotes: func(note func(key string, value any)) {
 			note("note", 42)
 		},
-		err: qt.BadCheckf("bad wolf"),
+		err:  qt.BadCheckf("bad wolf"),
+		args: []any{"want"},
 	},
-	got:  42,
-	args: []interface{}{"want"},
+	got: 42,
 	expectedFailure: `
 error:
   bad check: bad wolf
 note:
   int(42)
 `,
-}, {
+}, qtTest[int]{
 	about: "silent failure with notes",
-	checker: &testingChecker{
-		argNames: []string{"got", "want"},
-		addNotes: func(note func(key string, value interface{})) {
+	checker: &testingChecker[int]{
+		paramNames: []string{"got", "want"},
+		addNotes: func(note func(key string, value any)) {
 			note("note1", "first note")
 			note("note2", qt.Unquoted("second note"))
 		},
-		err: qt.ErrSilent,
+		args: []any{"want"},
+		err:  qt.ErrSilent,
 	},
-	got:  42,
-	args: []interface{}{"want"},
+	got: 42,
 	expectedFailure: `
 note1:
   "first note"
@@ -328,298 +217,33 @@ note2:
 }}
 
 func TestCAssertCheck(t *testing.T) {
-	for _, test := range cTests {
-		t.Run("Assert: "+test.about, func(t *testing.T) {
-			if test.format != nil {
-				t.Skip("changing format not supported when using qt.Assert directly")
-			}
-			tt := &testingT{}
-			ok := qt.Assert(tt, test.got, test.checker, test.args...)
-			checkResult(t, ok, tt.fatalString(), test.expectedFailure)
-			if tt.errorString() != "" {
-				t.Fatalf("no error messages expected, but got %q", tt.errorString())
-			}
-		})
-		t.Run("Check: "+test.about, func(t *testing.T) {
-			if test.format != nil {
-				t.Skip("changing format not supported when using qt.Check directly")
-			}
-			tt := &testingT{}
-			ok := qt.Check(tt, test.got, test.checker, test.args...)
-			checkResult(t, ok, tt.errorString(), test.expectedFailure)
-			if tt.fatalString() != "" {
-				t.Fatalf("no fatal messages expected, but got %q", tt.fatalString())
-			}
-		})
-		t.Run("c.Assert: "+test.about, func(t *testing.T) {
-			tt := &testingT{}
-			c := qt.New(tt)
-			if test.format != nil {
-				c.SetFormat(test.format)
-			}
-			ok := c.Assert(test.got, test.checker, test.args...)
-			checkResult(t, ok, tt.fatalString(), test.expectedFailure)
-			if tt.errorString() != "" {
-				t.Fatalf("no error messages expected, but got %q", tt.errorString())
-			}
-		})
-		t.Run("c.Check: "+test.about, func(t *testing.T) {
-			tt := &testingT{}
-			c := qt.New(tt)
-			if test.format != nil {
-				c.SetFormat(test.format)
-			}
-			ok := c.Check(test.got, test.checker, test.args...)
-			checkResult(t, ok, tt.errorString(), test.expectedFailure)
-			if tt.fatalString() != "" {
-				t.Fatalf("no fatal messages expected, but got %q", tt.fatalString())
-			}
-		})
+	for _, test := range qtTests {
+		test.run(t)
 	}
 }
 
-func TestCRunSuccess(t *testing.T) {
-	tt := &testingT{}
-	c := qt.New(tt)
-	var run bool
-	subTestName := "my test"
-	ok := c.Run(subTestName, func(innerC *qt.C) {
-		run = true
-		if innerC == c {
-			t.Fatal("subtest C: same instance provided")
-		}
-		if innerC.TB != tt.subTestT {
-			t.Fatalf("subtest testing object: got %p, want %p", innerC.TB, tt.subTestT)
-		}
-		if tt.subTestName != subTestName {
-			t.Fatalf("subtest name: got %q, want %q", tt.subTestName, subTestName)
+func (test qtTest[T]) run(t *testing.T) {
+	t.Run("Assert: "+test.about, func(t *testing.T) {
+		tt := &testingT{}
+		ok := qt.Assert(tt, test.got, test.checker, test.comment...)
+		checkResult(t, ok, tt.fatalString(), test.expectedFailure)
+		if tt.errorString() != "" {
+			t.Fatalf("no error messages expected, but got %q", tt.errorString())
 		}
 	})
-	assertBool(t, run, true)
-	assertBool(t, ok, false)
-
-	// Simulate a test success.
-	tt.subTestResult = true
-	ok = c.Run(subTestName, func(innerC *qt.C) {})
-	assertBool(t, ok, true)
-}
-
-func TestCRunOnBenchmark(t *testing.T) {
-	called := false
-	testing.Benchmark(func(b *testing.B) {
-		c := qt.New(b)
-		c.Run("c", func(c *qt.C) {
-			b1, ok := c.TB.(*testing.B)
-			if !ok {
-				t.Errorf("c.TB is type %T not *testing.B", c.TB)
-				return
-			}
-			if b1 == b {
-				t.Errorf("c.TB hasn't been given a new B value")
-				return
-			}
-			called = true
-		})
-	})
-	if !called {
-		t.Fatalf("sub-benchmark was never called")
-	}
-}
-
-// wrongRun1 has Run method with wrong arg count.
-type wrongRun1 struct {
-	testing.TB
-}
-
-func (wrongRun1) Run() {}
-
-// wrongRun2 has no Run method.
-type wrongRun2 struct {
-	testing.TB
-}
-
-// wrongRun3 has Run method that takes a type not
-// assignable to testing.TB.
-type wrongRun3 struct {
-	testing.TB
-}
-
-func (wrongRun3) Run(string, func(string)) bool { return false }
-
-// wrongRun4 has Run method that doesn't return bool.
-type wrongRun4 struct {
-	testing.TB
-}
-
-func (wrongRun4) Run(string, func(*testing.T)) {}
-
-var CRunPanicTests = []struct {
-	tb          testing.TB
-	expectPanic string
-}{{
-	tb:          wrongRun1{},
-	expectPanic: "wrong argument count for Run method",
-}, {
-	tb:          wrongRun2{},
-	expectPanic: "no Run method",
-}, {
-	tb:          wrongRun3{},
-	expectPanic: "bad first argument type for Run method",
-}, {
-	tb:          wrongRun4{},
-	expectPanic: "wrong argument count for Run method",
-}}
-
-func TestCRunPanic(t *testing.T) {
-	for _, test := range CRunPanicTests {
-		t.Run(fmt.Sprintf("%T", test.tb), func(t *testing.T) {
-			c := qt.New(test.tb)
-			defer func() {
-				got := recover()
-				want := fmt.Sprintf(
-					"cannot execute Run with underlying concrete type %T (%s)",
-					test.tb, test.expectPanic,
-				)
-				if got != want {
-					t.Fatalf("unexpected panic recover message; got %q want %q", got, want)
-				}
-			}()
-			c.Run("panic", func(innerC *qt.C) {})
-		})
-	}
-}
-
-func TestCRunFormat(t *testing.T) {
-	tt, innerTT := &testingT{}, &testingT{}
-	c := qt.New(tt)
-	c.SetFormat(func(v interface{}) string {
-		return fmt.Sprintf("myfmt(%v)", v)
-	})
-	c.Run("my test", func(innerC *qt.C) {
-		innerC.TB = innerTT
-		innerC.Check(42, qt.Equals, nil)
-	})
-	assertPrefix(t, innerTT.errorString(), `
-error:
-  values are not equal
-got:
-  myfmt(42)
-want:
-  myfmt(<nil>)
-`)
-}
-
-func TestHelper(t *testing.T) {
-	tt := &testingT{}
-	qt.Assert(tt, true, qt.IsFalse)
-	if tt.helperCalls != 3 {
-		t.Fatalf("want 3 calls (Assert, c.Assert, check), got %d", tt.helperCalls)
-	}
-}
-
-func TestCHelper(t *testing.T) {
-	tt := &testingT{}
-	c := qt.New(tt)
-	c.Assert(true, qt.IsFalse)
-	if tt.helperCalls != 2 {
-		t.Fatalf("want 2 calls (c.Assert, check), got %d", tt.helperCalls)
-	}
-}
-
-func TestCParallel(t *testing.T) {
-	tt := &testingT{}
-	c := qt.New(tt)
-	c.Parallel()
-	if !tt.parallel {
-		t.Fatalf("parallel not called")
-	}
-}
-
-func TestCParallelPanic(t *testing.T) {
-	c := qt.New(&testing.B{})
-	defer func() {
-		r := recover()
-		if r != "cannot execute Parallel with underlying concrete type *testing.B" {
-			t.Fatalf("unexpected panic recover: %v", r)
-		}
-	}()
-	c.Parallel()
-}
-
-func TestCDefer(t *testing.T) {
-	c := qt.New(t)
-	var defers []int
-	c.Run("subtest", func(c *qt.C) {
-		c.Defer(func() { defers = append(defers, 1) })
-		c.Defer(func() { defers = append(defers, 2) })
-		// Calling Done twice should not do anything more.
-		c.Done()
-	})
-	c.Assert(defers, qt.DeepEquals, []int{2, 1})
-}
-
-func TestCDeferCalledEvenAfterGoexit(t *testing.T) {
-	// The testing package uses runtime.Goexit on
-	// assertion failure, so check that defers are still
-	// called in that case.
-	c := qt.New(t)
-	defers := 0
-	c.Run("subtest", func(c *qt.C) {
-		c.Defer(func() {
-			defers++
-		})
-		c.Defer(func() {
-			c.SkipNow()
-		})
-	})
-	c.Assert(defers, qt.Equals, 1)
-}
-
-func TestCRunDefer(t *testing.T) {
-	c := qt.New(t)
-	defers := 0
-	c.Run("subtest", func(c *qt.C) {
-		c.Run("x", func(c *qt.C) {
-			c.Defer(func() { defers++ })
-		})
-	})
-	c.Assert(defers, qt.Equals, 1)
-}
-
-type customT struct {
-	*testing.T
-	data int
-}
-
-func (t *customT) Run(name string, f func(*customT)) bool {
-	return t.T.Run(name, func(t1 *testing.T) {
-		f(&customT{t1, t.data})
-	})
-}
-
-func TestCRunCustomType(t *testing.T) {
-	ct := &customT{t, 99}
-	c := qt.New(ct)
-	called := 0
-	c.Run("test", func(c *qt.C) {
-		called++
-		ct1, ok := c.TB.(*customT)
-		if !ok {
-			t.Error("TB isn't expected type")
-		}
-		if ct1.data != ct.data {
-			t.Errorf("data not copied correctly; got %v want %v", ct1.data, ct.data)
-		}
-		if ct1 == ct {
-			t.Errorf("old instance passed, not new")
+	t.Run("Check: "+test.about, func(t *testing.T) {
+		tt := &testingT{}
+		ok := qt.Check(tt, test.got, test.checker, test.comment...)
+		checkResult(t, ok, tt.errorString(), test.expectedFailure)
+		if tt.fatalString() != "" {
+			t.Fatalf("no fatal messages expected, but got %q", tt.fatalString())
 		}
 	})
-	if called != 1 {
-		t.Fatalf("subtest was called %d times, not once", called)
-	}
+
 }
 
 func checkResult(t *testing.T, ok bool, got, want string) {
+	t.Helper()
 	if want != "" {
 		assertPrefix(t, got, want+"stack:\n")
 		assertBool(t, ok, false)
@@ -647,13 +271,13 @@ type testingT struct {
 }
 
 // Error overrides testing.TB.Error so that messages are collected.
-func (t *testingT) Error(a ...interface{}) {
+func (t *testingT) Error(a ...any) {
 	fmt.Fprint(&t.errorBuf, a...)
 }
 
 // Fatal overrides testing.TB.Fatal so that messages are collected and the
 // goroutine is not killed.
-func (t *testingT) Fatal(a ...interface{}) {
+func (t *testingT) Fatal(a ...any) {
 	fmt.Fprint(&t.fatalBuf, a...)
 }
 
@@ -714,21 +338,27 @@ func assertBool(t testing.TB, got, want bool) {
 // testingChecker is a quicktest.Checker used in tests. It receives the
 // provided argNames, adds notes via the provided addNotes function, and when
 // the check is run the provided error is returned.
-type testingChecker struct {
-	argNames []string
-	addNotes func(note func(key string, value interface{}))
-	err      error
+type testingChecker[T any] struct {
+	paramNames []string
+	args       []any
+	addNotes   func(note func(key string, value any))
+	err        error
 }
 
 // Check implements quicktest.Checker by returning the stored error.
-func (c *testingChecker) Check(got interface{}, args []interface{}, note func(key string, value interface{})) error {
+func (c *testingChecker[T]) Check(got T, note func(key string, value any)) error {
 	if c.addNotes != nil {
 		c.addNotes(note)
 	}
 	return c.err
 }
 
+// ParamNames implements quicktest.Checker by returning the stored param names..
+func (c *testingChecker[T]) ParamNames() []string {
+	return c.paramNames
+}
+
 // Info implements quicktest.Checker by returning the stored args.
-func (c *testingChecker) ArgNames() []string {
-	return c.argNames
+func (c *testingChecker[T]) Args() []any {
+	return c.args
 }

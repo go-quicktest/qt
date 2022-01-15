@@ -1,6 +1,6 @@
 // Licensed under the MIT license, see LICENSE file for details.
 
-package quicktest
+package qt
 
 import "fmt"
 
@@ -11,7 +11,7 @@ import "fmt"
 //
 //     c.Assert(a, qt.Equals, 42, qt.Commentf("answer is not %d", 42))
 //
-func Commentf(format string, args ...interface{}) Comment {
+func Commentf(format string, args ...any) Comment {
 	return Comment{
 		format: format,
 		args:   args,
@@ -22,7 +22,7 @@ func Commentf(format string, args ...interface{}) Comment {
 // displayed when the check or assertion fails.
 type Comment struct {
 	format string
-	args   []interface{}
+	args   []any
 }
 
 // String outputs a string formatted according to the stored format specifier

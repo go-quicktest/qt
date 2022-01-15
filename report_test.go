@@ -1,21 +1,20 @@
 // Licensed under the MIT license, see LICENSE file for details.
 
-package quicktest_test
+package qt_test
 
 import (
 	"runtime"
 	"strings"
 	"testing"
 
-	qt "github.com/frankban/quicktest"
+	"github.com/go-quicktest/qt"
 )
 
 // The tests in this file rely on their own source code lines.
 
 func TestReportOutput(t *testing.T) {
 	tt := &testingT{}
-	c := qt.New(tt)
-	c.Assert(42, qt.Equals, 47)
+	qt.Assert(tt, 42, qt.Equals(47))
 	want := `
 error:
   values are not equal
@@ -24,47 +23,44 @@ got:
 want:
   int(47)
 stack:
-  $file:18
-    c.Assert(42, qt.Equals, 47)
+  $file:17
+    qt.Assert(tt, 42, qt.Equals(47))
 `
 	assertReport(t, tt, want)
 }
 
-func f1(c *qt.C) {
-	f2(c)
+func f1(t testing.TB) {
+	f2(t)
 }
 
-func f2(c *qt.C) {
-	c.Assert(42, qt.IsNil) // Real assertion here!
+func f2(t testing.TB) {
+	qt.Assert(t, 42, qt.IsNil) // Real assertion here!
 }
 
 func TestIndirectReportOutput(t *testing.T) {
 	tt := &testingT{}
-	c := qt.New(tt)
-	f1(c)
+	f1(tt)
 	want := `
 error:
   got non-nil value
 got:
   int(42)
 stack:
-  $file:38
-    c.Assert(42, qt.IsNil)
-  $file:34
-    f2(c)
-  $file:44
-    f1(c)
+  $file:37
+    qt.Assert(t, 42, qt.IsNil)
+  $file:33
+    f2(t)
+  $file:42
+    f1(tt)
 `
 	assertReport(t, tt, want)
 }
 
 func TestMultilineReportOutput(t *testing.T) {
 	tt := &testingT{}
-	c := qt.New(tt)
-	c.Assert(
+	qt.Assert(tt,
 		"this string", // Comment 1.
-		qt.Equals,
-		"another string",
+		qt.Equals("another string"),
 		qt.Commentf("a comment"), // Comment 2.
 	) // Comment 3.
 	want := `
@@ -77,11 +73,10 @@ got:
 want:
   "another string"
 stack:
-  $file:64
-    c.Assert(
+  $file:61
+    qt.Assert(tt,
         "this string", // Comment 1.
-        qt.Equals,
-        "another string",
+        qt.Equals("another string"),
         qt.Commentf("a comment"), // Comment 2.
     )
 `
@@ -90,7 +85,6 @@ stack:
 
 func TestCmpReportOutput(t *testing.T) {
 	tt := &testingT{}
-	c := qt.New(tt)
 	gotExamples := []*reportExample{{
 		AnInt: 42,
 	}, {
@@ -109,13 +103,14 @@ func TestCmpReportOutput(t *testing.T) {
 	}, {
 		AnInt: 1,
 	}, {}}
-	checker := qt.WithVerbosity(qt.DeepEquals, false)
-	c.Assert(gotExamples, checker, wantExamples)
+	checker := qt.DeepEquals(wantExamples)
+	qt.SetVerbosity(checker, false)
+	qt.Assert(tt, gotExamples, checker)
 	want := `
 error:
   values are not deep equal
 diff (-got +want):
-    []*quicktest_test.reportExample{
+    []*qt_test.reportExample{
             &{AnInt: 42},
             &{AnInt: 47},
   +         &{AnInt: 2},
@@ -124,15 +119,15 @@ diff (-got +want):
   +         &{},
     }
 stack:
-  $file:113
-    c.Assert(gotExamples, checker, wantExamples)
+  $file:108
+    qt.Assert(tt, gotExamples, checker)
 `
 	assertReport(t, tt, want)
 }
 
 func TestTopLevelAssertReportOutput(t *testing.T) {
 	tt := &testingT{}
-	qt.Assert(tt, 42, qt.Equals, 47)
+	qt.Assert(tt, 42, qt.Equals(47))
 	want := `
 error:
   values are not equal
@@ -141,13 +136,14 @@ got:
 want:
   int(47)
 stack:
-  $file:135
-    qt.Assert(tt, 42, qt.Equals, 47)
+  $file:130
+    qt.Assert(tt, 42, qt.Equals(47))
 `
 	assertReport(t, tt, want)
 }
 
 func assertReport(t *testing.T, tt *testingT, want string) {
+	t.Helper()
 	got := strings.Replace(tt.fatalString(), "\t", "        ", -1)
 	// go-cmp can include non-breaking spaces in its output.
 	got = strings.Replace(got, "\u00a0", " ", -1)

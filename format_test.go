@@ -1,6 +1,6 @@
 // Licensed under the MIT license, see LICENSE file for details.
 
-package quicktest_test
+package qt_test
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 
 var formatTests = []struct {
 	about string
-	value interface{}
+	value any
 	want  string
 }{{
 	about: "error value",
@@ -87,7 +87,7 @@ var formatTests = []struct {
 }, {
 	about: "custom bytes type",
 	value: myBytes("hello"),
-	want:  `quicktest_test.myBytes("hello")`,
+	want:  `qt_test.myBytes("hello")`,
 }, {
 	about: "bytes with backquote",
 	value: []byte(`a "b" c`),
