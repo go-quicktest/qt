@@ -20,10 +20,8 @@ type reportParams struct {
 	// paramNames holds the names for the parameters of the checker
 	// (including got as the first name).
 	paramNames []string
-	// got holds the value that was checked.
-	got any
-	// args holds all other arguments (if any) provided to the checker.
-	args []any
+	// args holds all the arguments passed to the checker.
+	args []Arg
 	// comment optionally holds the comment passed when performing the check.
 	comment Comment
 	// notes holds notes added while doing the check.
@@ -88,12 +86,9 @@ func writeError(w io.Writer, err error, p reportParams) {
 		// show output from args.
 		return
 	}
-	if len(p.args) != len(p.paramNames)-1 {
-		panic(fmt.Errorf("unexpected arg counts: args: %#v; paramNames: %#v", p.args, p.paramNames))
-	}
 	// Write provided args.
-	for i, arg := range append([]any{p.got}, p.args...) {
-		printPair(p.paramNames[i], arg)
+	for _, arg := range p.args {
+		printPair(arg.Name, arg.Value)
 	}
 }
 

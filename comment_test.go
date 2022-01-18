@@ -5,7 +5,7 @@ package qt_test
 import (
 	"testing"
 
-	qt "github.com/frankban/quicktest"
+	"github.com/go-quicktest/qt"
 )
 
 func TestCommentf(t *testing.T) {

@@ -2,9 +2,7 @@
 
 package qt
 
-import (
-	"errors"
-)
+import "errors"
 
 // TODO move this code into checker.go
 
@@ -15,6 +13,7 @@ import (
 //
 //     // Checking for a specific error type
 //     c.Assert(err, qt.ErrorAs, new(*os.PathError))
+//     c.Assert(err, qt.ErrorAs, (*os.PathError)(nil))
 //
 //     // Checking fields on a specific error type
 //     var pathError *os.PathError
@@ -22,25 +21,25 @@ import (
 //         c.Assert(pathError.Path, Equals, "some_path")
 //     }
 //
-func ErrorAs[T any](want *T) Checker[error] {
+func ErrorAs[T any](got error, want *T) Checker {
 	return &errorAsChecker[T]{
-		argNames: []string{"got", "as"},
-		want:     want,
+		got:  got,
+		want: want,
 	}
 }
 
 type errorAsChecker[T any] struct {
-	argNames
+	got  error
 	want *T
 }
 
 // Check implements Checker.Check by checking that got is an error whose error
 // chain matches args[0] and assigning it to args[0].
-func (c *errorAsChecker[T]) Check(got error, note func(key string, value any)) (err error) {
-	if got == nil {
+func (c *errorAsChecker[T]) Check(note func(key string, value any)) (err error) {
+	if c.got == nil {
 		return errors.New("got nil error but want non-nil")
 	}
-	gotErr := got.(error)
+	gotErr := c.got.(error)
 	defer func() {
 		// A panic is raised when the target is not a pointer to an interface
 		// or error.
@@ -58,8 +57,14 @@ func (c *errorAsChecker[T]) Check(got error, note func(key string, value any)) (
 	return nil
 }
 
-func (c *errorAsChecker[T]) Args() []any {
-	return []any{Unquoted(typeOf[T]().String())}
+func (c *errorAsChecker[T]) Args() []Arg {
+	return []Arg{{
+		Name:  "got",
+		Value: c.got,
+	}, {
+		Name:  "as type",
+		Value: Unquoted(typeOf[T]().String()),
+	}}
 }
 
 // ErrorIs returns a checker that checks that the error is or wraps a specific error value. This is
@@ -69,30 +74,24 @@ func (c *errorAsChecker[T]) Args() []any {
 //
 //     c.Assert(err, qt.ErrorIs, os.ErrNotExist)
 //
-func ErrorIs(want error) Checker[error] {
+func ErrorIs(got, want error) Checker {
 	return &errorIsChecker{
-		want:     want,
-		argNames: []string{"got", "want"},
+		argPair: argPairOf(got, want),
 	}
 }
 
 type errorIsChecker struct {
-	argNames
-	want error
+	argPair[error, error]
 }
 
 // Check implements Checker.Check by checking that got is an error whose error
 // chain matches args[0].
-func (c *errorIsChecker) Check(got error, note func(key string, value any)) error {
-	if got == nil {
+func (c *errorIsChecker) Check(note func(key string, value any)) error {
+	if c.got == nil {
 		return errors.New("got nil error but want non-nil")
 	}
-	if !errors.Is(got, c.want) {
+	if !errors.Is(c.got, c.want) {
 		return errors.New("wanted error is not found in error chain")
 	}
 	return nil
-}
-
-func (c *errorIsChecker) Args() []any {
-	return []any{c.want}
 }

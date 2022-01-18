@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	qt "github.com/frankban/quicktest"
+	"github.com/go-quicktest/qt"
 )
 
 func TestBadCheckf(t *testing.T) {

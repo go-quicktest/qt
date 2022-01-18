@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"testing"
 
-	qt "github.com/frankban/quicktest"
+	"github.com/go-quicktest/qt"
 )
 
 var formatTests = []struct {

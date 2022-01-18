@@ -72,19 +72,15 @@ type OuterJSON struct {
 
 type boolean bool
 
-type checkerTest[T any] struct {
+var checkerTests = []struct {
 	about                 string
-	checker               qt.Checker[T]
-	got                   T
+	checker               qt.Checker
 	verbose               bool
 	expectedCheckFailure  string
 	expectedNegateFailure string
-}
-
-var checkerTests = []testRunner{checkerTest[int]{
+}{{
 	about:   "Equals: same values",
-	checker: qt.Equals(42),
-	got:     42,
+	checker: qt.Equals(42, 42),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -93,10 +89,9 @@ got:
 want:
   <same as "got">
 `,
-}, checkerTest[string]{
+}, {
 	about:   "Equals: different values",
-	checker: qt.Equals("47"),
-	got:     "42",
+	checker: qt.Equals("42", "47"),
 	expectedCheckFailure: `
 error:
   values are not equal
@@ -105,10 +100,9 @@ got:
 want:
   "47"
 `,
-}, checkerTest[string]{
+}, {
 	about:   "Equals: different strings with quotes",
-	checker: qt.Equals(`string "bar"`),
-	got:     `string "foo"`,
+	checker: qt.Equals(`string "foo"`, `string "bar"`),
 	expectedCheckFailure: tilde2bq(`
 error:
   values are not equal
@@ -117,10 +111,9 @@ got:
 want:
   ~string "bar"~
 `),
-}, checkerTest[string]{
+}, {
 	about:   "Equals: same multiline strings",
-	checker: qt.Equals("a\nmultiline\nstring"),
-	got:     "a\nmultiline\nstring",
+	checker: qt.Equals("a\nmultiline\nstring", "a\nmultiline\nstring"),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -128,10 +121,9 @@ got:
   "a\nmultiline\nstring"
 want:
   <same as "got">
-`}, checkerTest[string]{
+`}, {
 	about:   "Equals: different multi-line strings",
-	checker: qt.Equals("just\na\nlong\nmulti-line\nstring\n"),
-	got:     "a\nlong\nmultiline\nstring",
+	checker: qt.Equals("a\nlong\nmultiline\nstring", "just\na\nlong\nmulti-line\nstring\n"),
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not equal
@@ -142,10 +134,9 @@ got:
 want:
   "just\na\nlong\nmulti-line\nstring\n"
 `, diff([]string{"a\n", "long\n", "multiline\n", "string"}, []string{"just\n", "a\n", "long\n", "multi-line\n", "string\n", ""})),
-}, checkerTest[string]{
+}, {
 	about:   "Equals: different single-line strings ending with newline",
-	checker: qt.Equals("bar\n"),
-	got:     "foo\n",
+	checker: qt.Equals("foo\n", "bar\n"),
 	expectedCheckFailure: `
 error:
   values are not equal
@@ -154,10 +145,9 @@ got:
 want:
   "bar\n"
 `,
-}, checkerTest[string]{
+}, {
 	about:   "Equals: different strings starting with newline",
-	checker: qt.Equals("\nbar"),
-	got:     "\nfoo",
+	checker: qt.Equals("\nfoo", "\nbar"),
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not equal
@@ -168,10 +158,9 @@ got:
 want:
   "\nbar"
 `, diff([]string{"\n", "foo"}, []string{"\n", "bar"})),
-}, checkerTest[any]{
+}, {
 	about:   "Equals: different types",
-	checker: qt.Equals(any("42")),
-	got:     42,
+	checker: qt.Equals(42, any("42")),
 	expectedCheckFailure: `
 error:
   values are not equal
@@ -179,10 +168,9 @@ got:
   int(42)
 want:
   "42"
-`}, checkerTest[any]{
+`}, {
 	about:   "Equals: nil and nil",
-	checker: qt.Equals(any(nil)),
-	got:     nil,
+	checker: qt.Equals(nil, any(nil)),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -191,10 +179,9 @@ got:
 want:
   <same as "got">
 `,
-}, checkerTest[error]{
+}, {
 	about:   "Equals: error is not nil",
-	checker: qt.Equals(error(nil)),
-	got:     errBadWolf,
+	checker: qt.Equals(error(errBadWolf), error(nil)),
 	expectedCheckFailure: `
 error:
   got non-nil error
@@ -203,12 +190,11 @@ got:
     file:line
 want:
   nil
-`}, checkerTest[error]{
-	about:   "Equals: error is not nil: not formatted",
-	checker: qt.Equals(error(nil)),
-	got: &errTest{
+`}, {
+	about: "Equals: error is not nil: not formatted",
+	checker: qt.Equals[error](&errTest{
 		msg: "bad wolf",
-	},
+	}, nil),
 	expectedCheckFailure: `
 error:
   got non-nil error
@@ -217,10 +203,9 @@ got:
 want:
   nil
 `,
-}, checkerTest[error]{
+}, {
 	about:   "Equals: error does not guard against nil",
-	checker: qt.Equals(error(nil)),
-	got:     (*errTest)(nil),
+	checker: qt.Equals[error]((*errTest)(nil), nil),
 	expectedCheckFailure: `
 error:
   got non-nil error
@@ -229,12 +214,11 @@ got:
 want:
   nil
 `,
-}, checkerTest[error]{
-	about:   "Equals: error is not nil: not formatted and with quotes",
-	checker: qt.Equals(error(nil)),
-	got: &errTest{
+}, {
+	about: "Equals: error is not nil: not formatted and with quotes",
+	checker: qt.Equals[error](&errTest{
 		msg: `failure: "bad wolf"`,
-	},
+	}, nil),
 	expectedCheckFailure: tilde2bq(`
 error:
   got non-nil error
@@ -243,12 +227,11 @@ got:
 want:
   nil
 `),
-}, checkerTest[error]{
-	about:   "Equals: different errors with same message",
-	checker: qt.Equals(errors.New("bad wolf")),
-	got: &errTest{
+}, {
+	about: "Equals: different errors with same message",
+	checker: qt.Equals[error](&errTest{
 		msg: "bad wolf",
-	},
+	}, errors.New("bad wolf")),
 	expectedCheckFailure: `
 error:
   values are not equal
@@ -261,10 +244,9 @@ got:
 want:
   <same as "got">
 `,
-}, checkerTest[any]{
+}, {
 	about:   "Equals: nil struct",
-	checker: qt.Equals[any](nil),
-	got:     (*struct{})(nil),
+	checker: qt.Equals[any]((*struct{})(nil), nil),
 	expectedCheckFailure: `
 error:
   values are not equal
@@ -273,10 +255,9 @@ got:
 want:
   nil
 `,
-}, checkerTest[bool]{
+}, {
 	about:   "Equals: different booleans",
-	checker: qt.Equals(false),
-	got:     true,
+	checker: qt.Equals(true, false),
 	expectedCheckFailure: `
 error:
   values are not equal
@@ -285,18 +266,17 @@ got:
 want:
   bool(false)
 `,
-}, checkerTest[any]{
+}, {
 	about: "Equals: uncomparable types",
 	checker: qt.Equals[any](struct {
 		Ints []int
 	}{
 		Ints: []int{42, 47},
-	}),
-	got: struct {
+	}, struct {
 		Ints []int
 	}{
 		Ints: []int{42, 47},
-	},
+	}),
 	expectedCheckFailure: `
 error:
   runtime error: comparing uncomparable type struct { Ints []int }
@@ -306,10 +286,9 @@ got:
   }
 want:
   <same as "got">
-`}, checkerTest[cmpType]{
+`}, {
 	about:   "DeepEquals: same values",
-	checker: qt.DeepEquals(cmpEqualsGot),
-	got:     cmpEqualsGot,
+	checker: qt.DeepEquals(cmpEqualsGot, cmpEqualsGot),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -324,20 +303,18 @@ got:
 want:
   <same as "got">
 `,
-}, checkerTest[cmpType]{
+}, {
 	about:   "DeepEquals: different values",
-	checker: qt.DeepEquals(cmpEqualsWant),
-	got:     cmpEqualsGot,
+	checker: qt.DeepEquals(cmpEqualsGot, cmpEqualsWant),
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
 diff (-got +want):
 %s
 `, diff(cmpEqualsGot, cmpEqualsWant)),
-}, checkerTest[cmpType]{
+}, {
 	about:   "DeepEquals: different values: verbose",
-	checker: qt.DeepEquals(cmpEqualsWant),
-	got:     cmpEqualsGot,
+	checker: qt.DeepEquals(cmpEqualsGot, cmpEqualsWant),
 	verbose: true,
 	expectedCheckFailure: fmt.Sprintf(`
 error:
@@ -361,10 +338,9 @@ want:
       Ints: {42},
   }
 `, diff(cmpEqualsGot, cmpEqualsWant)),
-}, checkerTest[[]int]{
-	about:   "DeepEquals: same values with options",
-	checker: qt.DeepEquals([]int{3, 2, 1}, sameInts),
-	got:     []int{1, 2, 3},
+}, {
+	about:   "CmpEquals: same values with options",
+	checker: qt.CmpEquals([]int{1, 2, 3}, []int{3, 2, 1}, sameInts),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -373,20 +349,18 @@ got:
 want:
   []int{3, 2, 1}
 `,
-}, checkerTest[[]int]{
-	about:   "DeepEquals: different values with options",
-	checker: qt.DeepEquals([]int{3, 2, 1}, sameInts),
-	got:     []int{1, 2, 4},
+}, {
+	about:   "CmpEquals: different values with options",
+	checker: qt.CmpEquals([]int{1, 2, 4}, []int{3, 2, 1}, sameInts),
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
 diff (-got +want):
 %s
 `, diff([]int{1, 2, 4}, []int{3, 2, 1}, sameInts)),
-}, checkerTest[[]int]{
-	about:   "DiffEquals: different values with options: verbose",
-	checker: qt.DeepEquals([]int{3, 2, 1}, sameInts),
-	got:     []int{1, 2, 4},
+}, {
+	about:   "CmpEquals: different values with options: verbose",
+	checker: qt.CmpEquals([]int{1, 2, 4}, []int{3, 2, 1}, sameInts),
 	verbose: true,
 	expectedCheckFailure: fmt.Sprintf(`
 error:
@@ -398,16 +372,16 @@ got:
 want:
   []int{3, 2, 1}
 `, diff([]int{1, 2, 4}, []int{3, 2, 1}, sameInts)),
-}, checkerTest[struct{ answer int }]{
+}, {
 	about: "DeepEquals: structs with unexported fields not allowed",
 	checker: qt.DeepEquals(
 		struct{ answer int }{
 			answer: 42,
 		},
+		struct{ answer int }{
+			answer: 42,
+		},
 	),
-	got: struct{ answer int }{
-		answer: 42,
-	},
 	expectedCheckFailure: `
 error:
   cannot handle unexported field at root.answer:
@@ -418,15 +392,15 @@ got:
 want:
   <same as "got">
 `,
-}, checkerTest[struct{ answer int }]{
-	about: "DeepEquals: structs with unexported fields ignored",
-	checker: qt.DeepEquals(
+}, {
+	about: "CmpEquals: structs with unexported fields ignored",
+	checker: qt.CmpEquals(
+		struct{ answer int }{
+			answer: 42,
+		},
 		struct{ answer int }{
 			answer: 42,
 		}, cmpopts.IgnoreUnexported(struct{ answer int }{})),
-	got: struct{ answer int }{
-		answer: 42,
-	},
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -435,10 +409,9 @@ got:
 want:
   <same as "got">
 `,
-}, checkerTest[time.Time]{
+}, {
 	about:   "DeepEquals: same times",
-	checker: qt.DeepEquals(goTime),
-	got:     goTime,
+	checker: qt.DeepEquals(goTime, goTime),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -447,10 +420,9 @@ got:
 want:
   <same as "got">
 `,
-}, checkerTest[time.Time]{
+}, {
 	about:   "DeepEquals: different times: verbose",
-	checker: qt.DeepEquals(goTime),
-	got:     goTime.Add(24 * time.Hour),
+	checker: qt.DeepEquals(goTime.Add(24*time.Hour), goTime),
 	verbose: true,
 	expectedCheckFailure: fmt.Sprintf(`
 error:
@@ -462,10 +434,9 @@ got:
 want:
   s"2012-03-28 00:00:00 +0000 UTC"
 `, diff(goTime.Add(24*time.Hour), goTime)),
-}, checkerTest[[]string]{
+}, {
 	about:   "ContentEquals: same values",
-	checker: qt.ContentEquals([]string{"these", "are", "the", "voyages"}),
-	got:     []string{"these", "are", "the", "voyages"},
+	checker: qt.ContentEquals([]string{"these", "are", "the", "voyages"}, []string{"these", "are", "the", "voyages"}),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -474,10 +445,9 @@ got:
 want:
   <same as "got">
 `,
-}, checkerTest[[]int]{
+}, {
 	about:   "ContentEquals: same contents",
-	checker: qt.ContentEquals([]int{3, 2, 1}),
-	got:     []int{1, 2, 3},
+	checker: qt.ContentEquals([]int{1, 2, 3}, []int{3, 2, 1}),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -486,21 +456,18 @@ got:
 want:
   []int{3, 2, 1}
 `,
-}, checkerTest[[]struct {
-	Strings []any
-	Ints    []int
-}]{
+}, {
 	about: "ContentEquals: same contents on complex slice",
 	checker: qt.ContentEquals(
 		[]struct {
 			Strings []any
 			Ints    []int
+		}{cmpEqualsGot, cmpEqualsGot, cmpEqualsWant},
+		[]struct {
+			Strings []any
+			Ints    []int
 		}{cmpEqualsWant, cmpEqualsGot, cmpEqualsGot},
 	),
-	got: []struct {
-		Strings []any
-		Ints    []int
-	}{cmpEqualsGot, cmpEqualsGot, cmpEqualsWant},
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -552,22 +519,20 @@ want:
           Ints: {42, 47},
       },
   }
-`}, checkerTest[struct {
-	Nums []int
-}]{
+`}, {
 	about: "ContentEquals: same contents on a nested slice",
 	checker: qt.ContentEquals(
+		struct {
+			Nums []int
+		}{
+			Nums: []int{1, 2, 3, 4},
+		},
 		struct {
 			Nums []int
 		}{
 			Nums: []int{4, 3, 2, 1},
 		},
 	),
-	got: struct {
-		Nums []int
-	}{
-		Nums: []int{1, 2, 3, 4},
-	},
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -580,20 +545,18 @@ want:
       Nums: {4, 3, 2, 1},
   }
 `,
-}, checkerTest[any]{
+}, {
 	about:   "ContentEquals: slices of different type",
-	checker: qt.ContentEquals[any]([]any{"bad", "wolf"}),
-	got:     []string{"bad", "wolf"},
+	checker: qt.ContentEquals[any]([]string{"bad", "wolf"}, []any{"bad", "wolf"}),
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
 diff (-got +want):
 %s
 `, diff([]string{"bad", "wolf"}, []any{"bad", "wolf"})),
-}, checkerTest[string]{
+}, {
 	about:   "Matches: perfect match",
-	checker: qt.Matches("exterminate"),
-	got:     "exterminate",
+	checker: qt.Matches("exterminate", "exterminate"),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -602,10 +565,9 @@ got value:
 regexp:
   <same as "got value">
 `,
-}, checkerTest[string]{
+}, {
 	about:   "Matches: match",
-	checker: qt.Matches("these are the .*"),
-	got:     "these are the voyages",
+	checker: qt.Matches("these are the voyages", "these are the .*"),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -614,10 +576,9 @@ got value:
 regexp:
   "these are the .*"
 `,
-}, checkerTest[string]{
+}, {
 	about:   "Matches: mismatch",
-	checker: qt.Matches("these are the voyages"),
-	got:     "voyages",
+	checker: qt.Matches("voyages", "these are the voyages"),
 	expectedCheckFailure: `
 error:
   value does not match regexp
@@ -626,10 +587,9 @@ got value:
 regexp:
   "these are the voyages"
 `,
-}, checkerTest[string]{
+}, {
 	about:   "Matches: empty pattern",
-	checker: qt.Matches(""),
-	got:     "these are the voyages",
+	checker: qt.Matches("these are the voyages", ""),
 	expectedCheckFailure: `
 error:
   value does not match regexp
@@ -638,10 +598,9 @@ got value:
 regexp:
   ""
 `,
-}, checkerTest[string]{
+}, {
 	about:   "Matches: complex pattern",
-	checker: qt.Matches("bad wolf|end of the .*"),
-	got:     "end of the universe",
+	checker: qt.Matches("end of the universe", "bad wolf|end of the .*"),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -650,10 +609,9 @@ got value:
 regexp:
   "bad wolf|end of the .*"
 `,
-}, checkerTest[string]{
+}, {
 	about:   "Matches: invalid pattern",
-	checker: qt.Matches("("),
-	got:     "voyages",
+	checker: qt.Matches("voyages", "("),
 	expectedCheckFailure: `
 error:
   bad check: cannot compile regexp: error parsing regexp: missing closing ): ` + "`^(()$`" + `
@@ -666,10 +624,9 @@ error:
 regexp:
   "("
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorMatches: perfect match",
-	checker: qt.ErrorMatches("bad wolf"),
-	got:     errBadWolf,
+	checker: qt.ErrorMatches(errBadWolf, "bad wolf"),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -679,10 +636,9 @@ got error:
 regexp:
   "bad wolf"
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorMatches: match",
-	checker: qt.ErrorMatches("bad .*"),
-	got:     errBadWolf,
+	checker: qt.ErrorMatches(errBadWolf, "bad .*"),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -692,10 +648,9 @@ got error:
 regexp:
   "bad .*"
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorMatches: mismatch",
-	checker: qt.ErrorMatches("exterminate"),
-	got:     errBadWolf,
+	checker: qt.ErrorMatches(errBadWolf, "exterminate"),
 	expectedCheckFailure: `
 error:
   error does not match regexp
@@ -705,10 +660,9 @@ got error:
 regexp:
   "exterminate"
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorMatches: empty pattern",
-	checker: qt.ErrorMatches(""),
-	got:     errBadWolf,
+	checker: qt.ErrorMatches(errBadWolf, ""),
 	expectedCheckFailure: `
 error:
   error does not match regexp
@@ -718,10 +672,9 @@ got error:
 regexp:
   ""
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorMatches: complex pattern",
-	checker: qt.ErrorMatches("bad wolf|end of the universe"),
-	got:     errBadWolf,
+	checker: qt.ErrorMatches(errBadWolf, "bad wolf|end of the universe"),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -731,10 +684,9 @@ got error:
 regexp:
   "bad wolf|end of the universe"
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorMatches: invalid pattern",
-	checker: qt.ErrorMatches("("),
-	got:     errBadWolf,
+	checker: qt.ErrorMatches(errBadWolf, "("),
 	expectedCheckFailure: `
 error:
   bad check: cannot compile regexp: error parsing regexp: missing closing ): ` + "`^(()$`" + `
@@ -747,10 +699,9 @@ error:
 regexp:
   "("
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorMatches: nil error",
-	checker: qt.ErrorMatches("some pattern"),
-	got:     nil,
+	checker: qt.ErrorMatches(nil, "some pattern"),
 	expectedCheckFailure: `
 error:
   got nil error but want non-nil
@@ -759,10 +710,9 @@ got error:
 regexp:
   "some pattern"
 `,
-}, checkerTest[func()]{
+}, {
 	about:   "PanicMatches: perfect match",
-	checker: qt.PanicMatches("error: bad wolf"),
-	got:     func() { panic("error: bad wolf") },
+	checker: qt.PanicMatches(func() { panic("error: bad wolf") }, "error: bad wolf"),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -773,10 +723,9 @@ function:
 regexp:
   <same as "panic value">
 `,
-}, checkerTest[func()]{
+}, {
 	about:   "PanicMatches: match",
-	checker: qt.PanicMatches("error: .*"),
-	got:     func() { panic("error: bad wolf") },
+	checker: qt.PanicMatches(func() { panic("error: bad wolf") }, "error: .*"),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -787,10 +736,9 @@ function:
 regexp:
   "error: .*"
 `,
-}, checkerTest[func()]{
+}, {
 	about:   "PanicMatches: mismatch",
-	checker: qt.PanicMatches("error: exterminate"),
-	got:     func() { panic("error: bad wolf") },
+	checker: qt.PanicMatches(func() { panic("error: bad wolf") }, "error: exterminate"),
 	expectedCheckFailure: `
 error:
   panic value does not match regexp
@@ -801,10 +749,9 @@ function:
 regexp:
   "error: exterminate"
 `,
-}, checkerTest[func()]{
+}, {
 	about:   "PanicMatches: empty pattern",
-	checker: qt.PanicMatches(""),
-	got:     func() { panic("error: bad wolf") },
+	checker: qt.PanicMatches(func() { panic("error: bad wolf") }, ""),
 	expectedCheckFailure: `
 error:
   panic value does not match regexp
@@ -815,10 +762,9 @@ function:
 regexp:
   ""
 `,
-}, checkerTest[func()]{
+}, {
 	about:   "PanicMatches: complex pattern",
-	checker: qt.PanicMatches("bad wolf|end of the universe"),
-	got:     func() { panic("bad wolf") },
+	checker: qt.PanicMatches(func() { panic("bad wolf") }, "bad wolf|end of the universe"),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -829,10 +775,9 @@ function:
 regexp:
   "bad wolf|end of the universe"
 `,
-}, checkerTest[func()]{
+}, {
 	about:   "PanicMatches: invalid pattern",
-	checker: qt.PanicMatches("("),
-	got:     func() { panic("error: bad wolf") },
+	checker: qt.PanicMatches(func() { panic("error: bad wolf") }, "("),
 	expectedCheckFailure: `
 error:
   bad check: cannot compile regexp: error parsing regexp: missing closing ): ` + "`^(()$`" + `
@@ -849,10 +794,9 @@ panic value:
 regexp:
   "("
 `,
-}, checkerTest[func()]{
+}, {
 	about:   "PanicMatches: no panic",
-	checker: qt.PanicMatches(".*"),
-	got:     func() {},
+	checker: qt.PanicMatches(func() {}, ".*"),
 	expectedCheckFailure: `
 error:
   function did not panic
@@ -861,111 +805,102 @@ function:
 regexp:
   ".*"
 `,
-}, checkerTest[any]{
+}, {
 	about:   "IsNil: nil",
-	checker: qt.IsNil,
-	got:     nil,
+	checker: qt.IsNil(any(nil)),
 	expectedNegateFailure: `
 error:
   unexpected success
 got:
   nil
 `,
-}, checkerTest[any]{
+}, {
 	about:   "IsNil: nil struct",
-	checker: qt.IsNil,
-	got:     (*struct{})(nil),
+	checker: qt.IsNil((*struct{})(nil)),
 	expectedNegateFailure: `
 error:
   unexpected success
 got:
   (*struct {})(nil)
 `,
-}, checkerTest[any]{
+}, {
 	about:   "IsNil: nil func",
-	checker: qt.IsNil,
-	got:     (func())(nil),
+	checker: qt.IsNil((func())(nil)),
 	expectedNegateFailure: `
 error:
   unexpected success
 got:
   func() {...}
 `,
-}, checkerTest[any]{
+}, {
 	about:   "IsNil: nil map",
-	checker: qt.IsNil,
-	got:     (map[string]string)(nil),
+	checker: qt.IsNil((map[string]string)(nil)),
 	expectedNegateFailure: `
 error:
   unexpected success
 got:
   map[string]string{}
 `,
-}, checkerTest[any]{
+}, {
 	about:   "IsNil: nil slice",
-	checker: qt.IsNil,
-	got:     ([]int)(nil),
+	checker: qt.IsNil(([]int)(nil)),
 	expectedNegateFailure: `
 error:
   unexpected success
 got:
   []int(nil)
 `,
-}, checkerTest[any]{
+}, {
 	about:   "IsNil: nil error-implementing type",
-	checker: qt.IsNil,
-	got:     (*errTest)(nil),
-	expectedCheckFailure: `
-error:
-  error containing nil value of type *qt_test.errTest. See https://golang.org/doc/faq#nil_error
-got:
-  e<nil>
-`,
-}, checkerTest[any]{
-	about:   "IsNil: not nil",
-	checker: qt.IsNil,
-	got:     42,
+	checker: qt.IsNil(error((*errTest)(nil))),
+	// TODO e<nil> isn't great here - perhaps we should
+	// mention the type too.
 	expectedCheckFailure: `
 error:
   got non-nil value
 got:
-  int(42)
+  e<nil>
 `,
-}, checkerTest[any]{
-	about:   "IsNil: error is not nil",
-	checker: qt.IsNil,
-	got:     errBadWolf,
+}, {
+	about:   "IsNil: not nil",
+	checker: qt.IsNil([]int{}),
 	expectedCheckFailure: `
 error:
-  got non-nil error
+  got non-nil value
+got:
+  []int{}
+`,
+}, {
+	about:   "IsNil: error is not nil",
+	checker: qt.IsNil(error(errBadWolf)),
+	expectedCheckFailure: `
+error:
+  got non-nil value
 got:
   bad wolf
     file:line
 `,
-}, checkerTest[any]{
+}, {
 	about:   "IsNotNil: success",
-	checker: qt.IsNotNil,
-	got:     42,
+	checker: qt.IsNotNil(any(42)),
 	expectedNegateFailure: `
 error:
   got non-nil value
 got:
   int(42)
 `,
-}, checkerTest[any]{
+}, {
 	about:   "IsNotNil: failure",
-	checker: qt.IsNotNil,
-	got:     nil,
+	checker: qt.IsNotNil[any](nil),
 	expectedCheckFailure: `
 error:
   unexpected success
 got:
   nil
 `,
-}, checkerTest[any]{
+}, {
 	about:   "HasLen: arrays with the same length",
-	checker: qt.HasLen(4),
-	got:     [4]string{"these", "are", "the", "voyages"},
+	checker: qt.HasLen([4]string{"these", "are", "the", "voyages"}, 4),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -976,10 +911,9 @@ got:
 want length:
   <same as "len(got)">
 `,
-}, checkerTest[any]{
+}, {
 	about:   "HasLen: channels with the same length",
-	checker: qt.HasLen(2),
-	got:     chInt,
+	checker: qt.HasLen(chInt, 2),
 	expectedNegateFailure: fmt.Sprintf(`
 error:
   unexpected success
@@ -990,10 +924,9 @@ got:
 want length:
   <same as "len(got)">
 `, chInt),
-}, checkerTest[any]{
+}, {
 	about:   "HasLen: maps with the same length",
-	checker: qt.HasLen(1),
-	got:     map[string]bool{"true": true},
+	checker: qt.HasLen(map[string]bool{"true": true}, 1),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1004,10 +937,9 @@ got:
 want length:
   <same as "len(got)">
 `,
-}, checkerTest[any]{
+}, {
 	about:   "HasLen: slices with the same length",
-	checker: qt.HasLen(0),
-	got:     []int{},
+	checker: qt.HasLen([]int{}, 0),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1018,10 +950,9 @@ got:
 want length:
   <same as "len(got)">
 `,
-}, checkerTest[any]{
+}, {
 	about:   "HasLen: strings with the same length",
-	checker: qt.HasLen(21),
-	got:     "these are the voyages",
+	checker: qt.HasLen("these are the voyages", 21),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1032,10 +963,9 @@ got:
 want length:
   <same as "len(got)">
 `,
-}, checkerTest[any]{
+}, {
 	about:   "HasLen: arrays with different lengths",
-	checker: qt.HasLen(0),
-	got:     [4]string{"these", "are", "the", "voyages"},
+	checker: qt.HasLen([4]string{"these", "are", "the", "voyages"}, 0),
 	expectedCheckFailure: `
 error:
   unexpected length
@@ -1046,10 +976,9 @@ got:
 want length:
   int(0)
 `,
-}, checkerTest[any]{
+}, {
 	about:   "HasLen: channels with different lengths",
-	checker: qt.HasLen(4),
-	got:     chInt,
+	checker: qt.HasLen(chInt, 4),
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   unexpected length
@@ -1060,10 +989,9 @@ got:
 want length:
   int(4)
 `, chInt),
-}, checkerTest[any]{
+}, {
 	about:   "HasLen: maps with different lengths",
-	checker: qt.HasLen(42),
-	got:     map[string]bool{"true": true},
+	checker: qt.HasLen(map[string]bool{"true": true}, 42),
 	expectedCheckFailure: `
 error:
   unexpected length
@@ -1074,10 +1002,9 @@ got:
 want length:
   int(42)
 `,
-}, checkerTest[any]{
+}, {
 	about:   "HasLen: slices with different lengths",
-	checker: qt.HasLen(1),
-	got:     []int{42, 47},
+	checker: qt.HasLen([]int{42, 47}, 1),
 	expectedCheckFailure: `
 error:
   unexpected length
@@ -1088,10 +1015,9 @@ got:
 want length:
   int(1)
 `,
-}, checkerTest[any]{
+}, {
 	about:   "HasLen: strings with different lengths",
-	checker: qt.HasLen(42),
-	got:     "these are the voyages",
+	checker: qt.HasLen("these are the voyages", 42),
 	expectedCheckFailure: `
 error:
   unexpected length
@@ -1102,26 +1028,24 @@ got:
 want length:
   int(42)
 `,
-}, checkerTest[any]{
+}, {
 	about:   "HasLen: value without a length",
-	checker: qt.HasLen(42),
-	got:     42,
+	checker: qt.HasLen(42, 42),
 	expectedCheckFailure: `
 error:
-  bad check: first argument has no length
+  bad check: first argument of type int has no length
 got:
   int(42)
 `,
 	expectedNegateFailure: `
 error:
-  bad check: first argument has no length
+  bad check: first argument of type int has no length
 got:
   int(42)
 `,
-}, checkerTest[any]{
+}, {
 	about:   "Implements: implements interface",
-	checker: qt.Implements[error](),
-	got:     errBadWolf,
+	checker: qt.Implements[error](errBadWolf),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1131,10 +1055,9 @@ got:
 want interface:
   error
 `,
-}, checkerTest[any]{
+}, {
 	about:   "Implements: does not implement interface",
-	checker: qt.Implements[Fooer](),
-	got:     errBadWolf,
+	checker: qt.Implements[Fooer](errBadWolf),
 	expectedCheckFailure: `
 error:
   got value does not implement wanted interface
@@ -1144,80 +1067,73 @@ got:
 want interface:
   qt_test.Fooer
 `,
-}, checkerTest[any]{
+}, {
 	about:   "Implements: fails if got nil",
-	checker: qt.Implements[Fooer](),
-	got:     nil,
+	checker: qt.Implements[Fooer](nil),
 	expectedCheckFailure: `
 error:
   got nil value but want non-nil
 got:
   nil
 `,
-}, checkerTest[error]{
+}, {
 	about:   "Satisfies: success with an error",
-	checker: qt.Satisfies(qt.IsBadCheck),
-	got:     qt.BadCheckf("bad wolf"),
+	checker: qt.Satisfies(qt.BadCheckf("bad wolf"), qt.IsBadCheck),
 	expectedNegateFailure: `
 error:
   unexpected success
-arg:
+got:
   e"bad check: bad wolf"
-predicate function:
+predicate:
   func(error) bool {...}
 `,
-}, checkerTest[int]{
+}, {
 	about:   "Satisfies: success with an int",
-	checker: qt.Satisfies(func(v int) bool { return v == 42 }),
-	got:     42,
+	checker: qt.Satisfies(42, func(v int) bool { return v == 42 }),
 	expectedNegateFailure: `
 error:
   unexpected success
-arg:
+got:
   int(42)
-predicate function:
+predicate:
   func(int) bool {...}
 `,
-}, checkerTest[[]int]{
+}, {
 	about:   "Satisfies: success with nil",
-	checker: qt.Satisfies(func(v []int) bool { return true }),
-	got:     []int(nil),
+	checker: qt.Satisfies([]int(nil), func(v []int) bool { return true }),
 	expectedNegateFailure: `
 error:
   unexpected success
-arg:
+got:
   []int(nil)
-predicate function:
+predicate:
   func([]int) bool {...}
 `,
-}, checkerTest[error]{
+}, {
 	about:   "Satisfies: failure with an error",
-	checker: qt.Satisfies(qt.IsBadCheck),
-	got:     nil,
+	checker: qt.Satisfies(nil, qt.IsBadCheck),
 	expectedCheckFailure: `
 error:
   value does not satisfy predicate function
-arg:
+got:
   nil
-predicate function:
+predicate:
   func(error) bool {...}
 `,
-}, checkerTest[string]{
+}, {
 	about:   "Satisfies: failure with a string",
-	checker: qt.Satisfies(func(string) bool { return false }),
-	got:     "bad wolf",
+	checker: qt.Satisfies("bad wolf", func(string) bool { return false }),
 	expectedCheckFailure: `
 error:
   value does not satisfy predicate function
-arg:
+got:
   "bad wolf"
-predicate function:
+predicate:
   func(string) bool {...}
 `,
-}, checkerTest[bool]{
+}, {
 	about:   "IsTrue: success",
-	checker: qt.IsTrue,
-	got:     true,
+	checker: qt.IsTrue(true),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1226,10 +1142,9 @@ got:
 want:
   <same as "got">
 `,
-}, checkerTest[bool]{
+}, {
 	about:   "IsTrue: failure",
-	checker: qt.IsTrue,
-	got:     false,
+	checker: qt.IsTrue(false),
 	expectedCheckFailure: `
 error:
   values are not equal
@@ -1238,10 +1153,31 @@ got:
 want:
   bool(true)
 `,
-}, checkerTest[bool]{
+}, {
+	about:   "IsTrue: success with subtype",
+	checker: qt.IsTrue(boolean(true)),
+	expectedNegateFailure: `
+error:
+  unexpected success
+got:
+  qt_test.boolean(true)
+want:
+  <same as "got">
+`,
+}, {
+	about:   "IsTrue: failure with subtype",
+	checker: qt.IsTrue(boolean(false)),
+	expectedCheckFailure: `
+error:
+  values are not equal
+got:
+  qt_test.boolean(false)
+want:
+  qt_test.boolean(true)
+`,
+}, {
 	about:   "IsFalse: success",
-	checker: qt.IsFalse,
-	got:     false,
+	checker: qt.IsFalse(false),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1250,10 +1186,9 @@ got:
 want:
   <same as "got">
 `,
-}, checkerTest[bool]{
+}, {
 	about:   "IsFalse: failure",
-	checker: qt.IsFalse,
-	got:     true,
+	checker: qt.IsFalse(true),
 	expectedCheckFailure: `
 error:
   values are not equal
@@ -1262,33 +1197,30 @@ got:
 want:
   bool(false)
 `,
-}, checkerTest[any]{
+}, {
 	about:   "StringContains match",
-	checker: qt.Contains("world"),
-	got:     "hello, world",
+	checker: qt.StringContains("hello, world", "world"),
 	expectedNegateFailure: `
 error:
   unexpected success
-container:
+got:
   "hello, world"
-want:
+substr:
   "world"
 `,
-}, checkerTest[any]{
+}, {
 	about:   "StringContains no match",
-	checker: qt.Contains("worlds"),
-	got:     "hello, world",
+	checker: qt.StringContains("hello, world", "worlds"),
 	expectedCheckFailure: `
 error:
   no substring match found
-container:
+got:
   "hello, world"
-want:
+substr:
   "worlds"
-`}, checkerTest[any]{
-	about:   "Contains match",
-	checker: qt.Contains("a"),
-	got:     []string{"a", "b", "c"},
+`}, {
+	about:   "SliceContains match",
+	checker: qt.SliceContains([]string{"a", "b", "c"}, "a"),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1297,13 +1229,23 @@ container:
 want:
   "a"
 `,
-}, checkerTest[any]{
-	about:   "Contains with map",
-	checker: qt.Contains("d"),
-	got: map[string]string{
+}, {
+	about:   "SliceContains mismatch",
+	checker: qt.SliceContains([]string{"a", "b", "c"}, "d"),
+	expectedCheckFailure: `
+error:
+  no matching element found
+container:
+  []string{"a", "b", "c"}
+want:
+  "d"
+`,
+}, {
+	about: "Contains with map",
+	checker: qt.MapContains(map[string]string{
 		"a": "d",
 		"b": "a",
-	},
+	}, "d"),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1312,22 +1254,9 @@ container:
 want:
   "d"
 `,
-}, checkerTest[any]{
-	about:   "Contains with non-string",
-	checker: qt.Contains(5),
-	got:     "aa",
-	expectedCheckFailure: `
-error:
-  bad check: strings can only contain strings, not int
-`,
-	expectedNegateFailure: `
-error:
-  bad check: strings can only contain strings, not int
-`,
-}, checkerTest[any]{
+}, {
 	about:   "All slice equals",
-	checker: qt.All(qt.Equals("a")),
-	got:     []string{"a", "a"},
+	checker: qt.SliceAll([]string{"a", "a"}, qt.F2(qt.Equals[string], "a")),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1336,10 +1265,9 @@ container:
 want:
   "a"
 `,
-}, checkerTest[any]{
+}, {
 	about:   "All slice match",
-	checker: qt.All(qt.Matches(".*e.*")),
-	got:     []string{"red", "blue", "green"},
+	checker: qt.SliceAll([]string{"red", "blue", "green"}, qt.F2(qt.Matches, ".*e.*")),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1348,41 +1276,42 @@ container:
 regexp:
   ".*e.*"
 `,
-	// TODO work out what to do about nested matches.
-	//}, checkerTest[any]{
-	//	about:   "All nested match",
-	//	checker: qt.All(qt.All(qt.Matches(".*e.*"))),
-	//	got:     [][]string{{"hello", "goodbye"}, {"red", "blue"}, {}},
-	//	expectedNegateFailure: `
-	//error:
-	//  unexpected success
-	//container:
-	//  [][]string{
-	//      {"hello", "goodbye"},
-	//      {"red", "blue"},
-	//      {},
-	//  }
-	//regexp:
-	//  ".*e.*"
-	//`,
-	//}, checkerTest[any]{
-	//	about:   "All nested mismatch",
-	//	checker: qt.All(qt.All(qt.Matches(".*e.*"))),
-	//	got:     [][]string{{"hello", "goodbye"}, {"black", "blue"}, {}},
-	//	expectedCheckFailure: `
-	//error:
-	//  mismatch at index 1
-	//error:
-	//  mismatch at index 0
-	//error:
-	//  value does not match regexp
-	//first mismatched element:
-	//  "black"
-	//`,
-}, checkerTest[any]{
+}, {
+	about: "All nested match",
+	// TODO this is a bit awkward. Is there something we could do to improve it?
+	checker: qt.SliceAll([][]string{{"hello", "goodbye"}, {"red", "blue"}, {}}, func(elem []string) qt.Checker {
+		return qt.SliceAll(elem, qt.F2(qt.Matches, ".*e.*"))
+	}),
+	expectedNegateFailure: `
+error:
+  unexpected success
+container:
+  [][]string{
+      {"hello", "goodbye"},
+      {"red", "blue"},
+      {},
+  }
+regexp:
+  ".*e.*"
+`,
+}, {
+	about: "All nested mismatch",
+	checker: qt.SliceAll([][]string{{"hello", "goodbye"}, {"black", "blue"}, {}}, func(elem []string) qt.Checker {
+		return qt.SliceAll(elem, qt.F2(qt.Matches, ".*e.*"))
+	}),
+	expectedCheckFailure: `
+error:
+  mismatch at index 1
+error:
+  mismatch at index 0
+error:
+  value does not match regexp
+first mismatched element:
+  "black"
+`,
+}, {
 	about:   "All slice mismatch",
-	checker: qt.All(qt.Matches(".*e.*")),
-	got:     []string{"red", "black"},
+	checker: qt.SliceAll([]string{"red", "black"}, qt.F2(qt.Matches, ".*e.*")),
 	expectedCheckFailure: `
 error:
   mismatch at index 1
@@ -1391,10 +1320,9 @@ error:
 first mismatched element:
   "black"
 `,
-}, checkerTest[any]{
+}, {
 	about:   "All slice mismatch with DeepEqual",
-	checker: qt.All(qt.DeepEquals([]string{"a", "b"})),
-	got:     [][]string{{"a", "b"}, {"a", "c"}},
+	checker: qt.SliceAll([][]string{{"a", "b"}, {"a", "c"}}, qt.F2(qt.DeepEquals[[]string], []string{"a", "b"})),
 	expectedCheckFailure: `
 error:
   mismatch at index 1
@@ -1403,22 +1331,9 @@ error:
 diff (-got +want):
 ` + diff([]string{"a", "c"}, []string{"a", "b"}) + `
 `,
-}, checkerTest[any]{
-	about:   "All with non-container",
-	checker: qt.All(qt.Equals(5)),
-	got:     5,
-	expectedCheckFailure: `
-error:
-  bad check: map, slice or array required
-`,
-	expectedNegateFailure: `
-error:
-  bad check: map, slice or array required
-`,
-}, checkerTest[any]{
+}, {
 	about:   "All mismatch with map",
-	checker: qt.All(qt.Matches(".*e.*")),
-	got:     map[string]string{"a": "red", "b": "black"},
+	checker: qt.MapAll(map[string]string{"a": "red", "b": "black"}, qt.F2(qt.Matches, ".*e.*")),
 	expectedCheckFailure: `
 error:
   mismatch at key "b"
@@ -1426,22 +1341,9 @@ error:
   value does not match regexp
 first mismatched element:
   "black"
-`}, checkerTest[any]{
-	about:   "Any with non-container",
-	checker: qt.Any(qt.Equals(5)),
-	got:     5,
-	expectedCheckFailure: `
-error:
-  bad check: map, slice or array required
-`,
-	expectedNegateFailure: `
-error:
-  bad check: map, slice or array required
-`,
-}, checkerTest[any]{
+`}, {
 	about:   "Any no match",
-	checker: qt.Any(qt.Equals(5)),
-	got:     []int{},
+	checker: qt.SliceAny([]int{}, qt.F2(qt.Equals[int], 5)),
 	expectedCheckFailure: `
 error:
   no matching element found
@@ -1450,14 +1352,14 @@ container:
 want:
   int(5)
 `,
-}, checkerTest[[]byte]{
+}, {
 	about: "JSONEquals simple",
 	checker: qt.JSONEquals(
+		[]byte(`{"First": 47.11}`),
 		&OuterJSON{
 			First: 47.11,
 		},
 	),
-	got: []byte(`{"First": 47.11}`),
 	expectedNegateFailure: tilde2bq(`
 error:
   unexpected success
@@ -1469,9 +1371,10 @@ want:
       Second: nil,
   }
 `),
-}, checkerTest[[]byte]{
+}, {
 	about: "JSONEquals nested",
 	checker: qt.JSONEquals(
+		`{"First": 47.11, "Last": [{"First": "Hello", "Second": 42}]}`,
 		&OuterJSON{
 			First: 47.11,
 			Second: []*InnerJSON{
@@ -1479,12 +1382,11 @@ want:
 			},
 		},
 	),
-	got: []byte(`{"First": 47.11, "Last": [{"First": "Hello", "Second": 42}]}`),
 	expectedNegateFailure: tilde2bq(`
 error:
   unexpected success
 got:
-  []uint8(~{"First": 47.11, "Last": [{"First": "Hello", "Second": 42}]}~)
+  ~{"First": 47.11, "Last": [{"First": "Hello", "Second": 42}]}~
 want:
   &qt_test.OuterJSON{
       First:  47.11,
@@ -1497,9 +1399,11 @@ want:
       },
   }
 `),
-}, checkerTest[[]byte]{
+}, {
 	about: "JSONEquals nested with newline",
 	checker: qt.JSONEquals(
+		`{"First": 47.11, "Last": [{"First": "Hello", "Second": 42},
+			{"First": "World", "Third": {"F": false}}]}`,
 		&OuterJSON{
 			First: 47.11,
 			Second: []*InnerJSON{
@@ -1510,13 +1414,11 @@ want:
 			},
 		},
 	),
-	got: []byte(`{"First": 47.11, "Last": [{"First": "Hello", "Second": 42},
-			{"First": "World", "Third": {"F": false}}]}`),
 	expectedNegateFailure: `
 error:
   unexpected success
 got:
-  []uint8("{\"First\": 47.11, \"Last\": [{\"First\": \"Hello\", \"Second\": 42},\n\t\t\t{\"First\": \"World\", \"Third\": {\"F\": false}}]}")
+  "{\"First\": 47.11, \"Last\": [{\"First\": \"Hello\", \"Second\": 42},\n\t\t\t{\"First\": \"World\", \"Third\": {\"F\": false}}]}"
 want:
   &qt_test.OuterJSON{
       First:  47.11,
@@ -1534,24 +1436,23 @@ want:
       },
   }
 `,
-}, checkerTest[[]byte]{
+}, {
 	about: "JSONEquals extra field",
 	checker: qt.JSONEquals(
+		`{"NotThere": 1}`,
 		&OuterJSON{
 			First: 2,
 		},
 	),
-	got: []byte(`{"NotThere": 1}`),
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
 diff (-got +want):
 %s
 `, diff(map[string]any{"NotThere": 1.0}, map[string]any{"First": 2.0})),
-}, checkerTest[[]byte]{
+}, {
 	about:   "JSONEquals cannot unmarshal obtained value",
-	checker: qt.JSONEquals(nil),
-	got:     []byte(`{"NotThere": `),
+	checker: qt.JSONEquals([]byte(`{"NotThere": `), nil),
 	expectedCheckFailure: fmt.Sprintf(tilde2bq(`
 error:
   cannot unmarshal obtained contents: %s; "{\"NotThere\": "
@@ -1560,10 +1461,9 @@ got:
 want:
   nil
 `), mustJSONUnmarshalErr(`{"NotThere": `)),
-}, checkerTest[[]byte]{
+}, {
 	about:   "JSONEquals cannot marshal expected value",
-	checker: qt.JSONEquals(jsonErrorMarshaler{}),
-	got:     []byte(`null`),
+	checker: qt.JSONEquals([]byte(`null`), jsonErrorMarshaler{}),
 	expectedCheckFailure: `
 error:
   bad check: cannot marshal expected contents: json: error calling MarshalJSON for type qt_test.jsonErrorMarshaler: qt json marshal error
@@ -1572,10 +1472,9 @@ error:
 error:
   bad check: cannot marshal expected contents: json: error calling MarshalJSON for type qt_test.jsonErrorMarshaler: qt json marshal error
 `,
-}, checkerTest[[]byte]{
+}, {
 	about:   "JSONEquals with []byte",
-	checker: qt.JSONEquals(nil),
-	got:     []byte("null"),
+	checker: qt.JSONEquals([]byte("null"), nil),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1584,10 +1483,9 @@ got:
 want:
   nil
 `,
-}, checkerTest[[]byte]{
+}, {
 	about:   "JSONEquals with RawMessage",
-	checker: qt.JSONEquals(json.RawMessage("null")),
-	got:     []byte("null"),
+	checker: qt.JSONEquals([]byte("null"), json.RawMessage("null")),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1596,14 +1494,14 @@ got:
 want:
   json.RawMessage("null")
 `,
-}, checkerTest[[]byte]{
+}, {
 	about: "CodecEquals with bad marshal",
 	checker: qt.CodecEquals(
+		"null",
 		nil,
 		func(x any) ([]byte, error) { return []byte("bad json"), nil },
 		json.Unmarshal,
 	),
-	got: []byte("null"),
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   bad check: cannot unmarshal expected contents: %s
@@ -1612,75 +1510,70 @@ error:
 error:
   bad check: cannot unmarshal expected contents: %s
 `, mustJSONUnmarshalErr("bad json")),
-}, checkerTest[[]byte]{
+}, {
 	about: "CodecEquals with options",
 	checker: qt.CodecEquals(
+		`["b", "z", "c", "a"]`,
 		[]string{"a", "c", "z", "b"},
 		json.Marshal,
 		json.Unmarshal,
 		cmpopts.SortSlices(func(x, y any) bool { return x.(string) < y.(string) }),
 	),
-	got: []byte(`["b", "z", "c", "a"]`),
 	expectedNegateFailure: tilde2bq(`
 error:
   unexpected success
 got:
-  []uint8(~["b", "z", "c", "a"]~)
+  ~["b", "z", "c", "a"]~
 want:
   []string{"a", "c", "z", "b"}
 `),
-}, checkerTest[error]{
+}, {
 	about:   "ErrorAs: exact match",
-	checker: qt.ErrorAs(new(*errTarget)),
-	got:     targetErr,
+	checker: qt.ErrorAs(targetErr, new(*errTarget)),
 	expectedNegateFailure: `
 error:
   unexpected success
 got:
   e"target"
-as:
+as type:
   *qt_test.errTarget
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorAs: wrapped match",
-	checker: qt.ErrorAs(new(*errTarget)),
-	got:     fmt.Errorf("wrapped: %w", targetErr),
+	checker: qt.ErrorAs(fmt.Errorf("wrapped: %w", targetErr), new(*errTarget)),
 	expectedNegateFailure: `
 error:
   unexpected success
 got:
   e"wrapped: target"
-as:
+as type:
   *qt_test.errTarget
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorAs: fails if nil error",
-	checker: qt.ErrorAs(new(*errTarget)),
-	got:     nil,
+	checker: qt.ErrorAs(nil, new(*errTarget)),
 	expectedCheckFailure: `
 error:
   got nil error but want non-nil
 got:
   nil
-as:
+as type:
   *qt_test.errTarget
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorAs: fails if mismatch",
-	checker: qt.ErrorAs(new(*errTarget)),
-	got:     errors.New("other error"),
+	checker: qt.ErrorAs(errors.New("other error"), new(*errTarget)),
 	expectedCheckFailure: `
 error:
   wanted type is not found in error chain
 got:
   e"other error"
-as:
+as type:
   *qt_test.errTarget
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorAs: bad check if invalid as",
-	checker: qt.ErrorAs(&struct{}{}),
-	got:     targetErr,
+	checker: qt.ErrorAs(targetErr, &struct{}{}),
 	expectedCheckFailure: `
 error:
   bad check: errors: *target must be interface or implement error
@@ -1689,10 +1582,9 @@ error:
 error:
   bad check: errors: *target must be interface or implement error
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorIs: exact match",
-	checker: qt.ErrorIs(targetErr),
-	got:     targetErr,
+	checker: qt.ErrorIs(targetErr, targetErr),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1701,10 +1593,9 @@ got:
 want:
   <same as "got">
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorIs: wrapped match",
-	checker: qt.ErrorIs(targetErr),
-	got:     fmt.Errorf("wrapped: %w", targetErr),
+	checker: qt.ErrorIs(fmt.Errorf("wrapped: %w", targetErr), targetErr),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1713,10 +1604,9 @@ got:
 want:
   e"target"
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorIs: fails if nil error",
-	checker: qt.ErrorIs(targetErr),
-	got:     nil,
+	checker: qt.ErrorIs(nil, targetErr),
 	expectedCheckFailure: `
 error:
   got nil error but want non-nil
@@ -1725,10 +1615,9 @@ got:
 want:
   e"target"
 `,
-}, checkerTest[error]{
+}, {
 	about:   "ErrorIs: fails if mismatch",
-	checker: qt.ErrorIs(targetErr),
-	got:     errors.New("other error"),
+	checker: qt.ErrorIs(errors.New("other error"), targetErr),
 	expectedCheckFailure: `
 error:
   wanted error is not found in error chain
@@ -1741,23 +1630,19 @@ want:
 
 func TestCheckers(t *testing.T) {
 	for _, test := range checkerTests {
-		test.run(t)
+		t.Run(test.about, func(t *testing.T) {
+			tt := &testingT{}
+			qt.SetVerbosity(test.checker, test.verbose)
+			ok := qt.Check(tt, test.checker)
+			checkResult(t, ok, tt.errorString(), test.expectedCheckFailure)
+		})
+		t.Run("Not "+test.about, func(t *testing.T) {
+			tt := &testingT{}
+			qt.SetVerbosity(test.checker, test.verbose)
+			ok := qt.Check(tt, qt.Not(test.checker))
+			checkResult(t, ok, tt.errorString(), test.expectedNegateFailure)
+		})
 	}
-}
-
-func (test checkerTest[T]) run(t *testing.T) {
-	t.Run(test.about, func(t *testing.T) {
-		tt := &testingT{}
-		qt.SetVerbosity(test.checker, test.verbose)
-		ok := qt.Check(tt, test.got, test.checker)
-		checkResult(t, ok, tt.errorString(), test.expectedCheckFailure)
-	})
-	t.Run("Not "+test.about, func(t *testing.T) {
-		tt := &testingT{}
-		qt.SetVerbosity(test.checker, test.verbose)
-		ok := qt.Check(tt, test.got, qt.Not(test.checker))
-		checkResult(t, ok, tt.errorString(), test.expectedNegateFailure)
-	})
 }
 
 func diff(x, y any, opts ...cmp.Option) string {

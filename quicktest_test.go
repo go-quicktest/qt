@@ -12,26 +12,17 @@ import (
 	"github.com/go-quicktest/qt"
 )
 
-type qtTest[T any] struct {
+var qtTests = []struct {
 	about           string
-	checker         qt.Checker[T]
-	got             T
+	checker         qt.Checker
 	comment         []qt.Comment
 	expectedFailure string
-}
-
-type testRunner interface {
-	run(t *testing.T)
-}
-
-var qtTests = []testRunner{qtTest[int]{
+}{{
 	about:   "success",
-	checker: qt.Equals(42),
-	got:     42,
-}, qtTest[string]{
+	checker: qt.Equals(42, 42),
+}, {
 	about:   "failure",
-	checker: qt.Equals("47"),
-	got:     "42",
+	checker: qt.Equals("42", "47"),
 	expectedFailure: `
 error:
   values are not equal
@@ -40,10 +31,9 @@ got:
 want:
   "47"
 `,
-}, qtTest[string]{
+}, {
 	about:   "failure with % signs",
-	checker: qt.Equals("47%y"),
-	got:     "42%x",
+	checker: qt.Equals("42%x", "47%y"),
 	expectedFailure: `
 error:
   values are not equal
@@ -52,10 +42,9 @@ got:
 want:
   "47%y"
 `,
-}, qtTest[bool]{
+}, {
 	about:   "failure with comment",
-	checker: qt.Equals(false),
-	got:     true,
+	checker: qt.Equals(true, false),
 	comment: []qt.Comment{qt.Commentf("apparently %v != %v", true, false)},
 	expectedFailure: `
 error:
@@ -67,10 +56,9 @@ got:
 want:
   bool(false)
 `,
-}, qtTest[any]{
+}, {
 	about:   "another failure with comment",
-	checker: qt.IsNil,
-	got:     42,
+	checker: qt.IsNil(any(42)),
 	comment: []qt.Comment{qt.Commentf("bad wolf: %d", 42)},
 	expectedFailure: `
 error:
@@ -80,10 +68,9 @@ comment:
 got:
   int(42)
 `,
-}, qtTest[any]{
+}, {
 	about:   "failure with constant comment",
-	checker: qt.IsNil,
-	got:     "something",
+	checker: qt.IsNil(any("something")),
 	comment: []qt.Comment{qt.Commentf("these are the voyages")},
 	expectedFailure: `
 error:
@@ -93,10 +80,9 @@ comment:
 got:
   "something"
 `,
-}, qtTest[any]{
+}, {
 	about:   "failure with empty comment",
-	checker: qt.IsNil,
-	got:     47,
+	checker: qt.IsNil(any(47)),
 	comment: []qt.Comment{qt.Commentf("")},
 	expectedFailure: `
 error:
@@ -104,17 +90,25 @@ error:
 got:
   int(47)
 `,
-}, qtTest[int]{
+}, {
 	about: "nil checker",
 	expectedFailure: `
 error:
   bad check: nil checker provided
 `,
-}, qtTest[int]{
+}, {
 	about: "many arguments and notes",
-	checker: &testingChecker[int]{
-		paramNames: []string{"arg1", "arg2", "arg3"},
-		args:       []any{"val2", "val3"},
+	checker: &testingChecker{
+		args: []qt.Arg{{
+			Name:  "arg1",
+			Value: 42,
+		}, {
+			Name:  "arg2",
+			Value: "val2",
+		}, {
+			Name:  "arg3",
+			Value: "val3",
+		}},
 		addNotes: func(note func(key string, value any)) {
 			note("note1", "these")
 			note("note2", qt.Unquoted("are"))
@@ -124,7 +118,6 @@ error:
 		},
 		err: errors.New("bad wolf"),
 	},
-	got: 42,
 	expectedFailure: `
 error:
   bad wolf
@@ -145,11 +138,22 @@ arg2:
 arg3:
   "val3"
 `,
-}, qtTest[string]{
+}, {
 	about: "many arguments and notes with the same value",
-	checker: &testingChecker[string]{
-		paramNames: []string{"arg1", "arg2", "arg3", "arg4"},
-		args:       []any{"value1", []int{42}, nil},
+	checker: &testingChecker{
+		args: []qt.Arg{{
+			Name:  "arg1",
+			Value: "value1",
+		}, {
+			Name:  "arg2",
+			Value: "value1",
+		}, {
+			Name:  "arg3",
+			Value: []int{42},
+		}, {
+			Name:  "arg4",
+			Value: nil,
+		}},
 		addNotes: func(note func(key string, value any)) {
 			note("note1", "value1")
 			note("note2", []int{42})
@@ -158,7 +162,6 @@ arg3:
 		},
 		err: errors.New("bad wolf"),
 	},
-	got: "value1",
 	expectedFailure: `
 error:
   bad wolf
@@ -179,35 +182,43 @@ arg3:
 arg4:
   <same as "note4">
 `,
-}, qtTest[int]{
+}, {
 	about: "bad check with notes",
-	checker: &testingChecker[int]{
-		paramNames: []string{"got", "want"},
+	checker: &testingChecker{
+		args: []qt.Arg{{
+			Name:  "got",
+			Value: 42,
+		}, {
+			Name:  "want",
+			Value: "want",
+		}},
 		addNotes: func(note func(key string, value any)) {
 			note("note", 42)
 		},
-		err:  qt.BadCheckf("bad wolf"),
-		args: []any{"want"},
+		err: qt.BadCheckf("bad wolf"),
 	},
-	got: 42,
 	expectedFailure: `
 error:
   bad check: bad wolf
 note:
   int(42)
 `,
-}, qtTest[int]{
+}, {
 	about: "silent failure with notes",
-	checker: &testingChecker[int]{
-		paramNames: []string{"got", "want"},
+	checker: &testingChecker{
+		args: []qt.Arg{{
+			Name:  "got",
+			Value: 42,
+		}, {
+			Name:  "want",
+			Value: "want",
+		}},
 		addNotes: func(note func(key string, value any)) {
 			note("note1", "first note")
 			note("note2", qt.Unquoted("second note"))
 		},
-		args: []any{"want"},
-		err:  qt.ErrSilent,
+		err: qt.ErrSilent,
 	},
-	got: 42,
 	expectedFailure: `
 note1:
   "first note"
@@ -218,28 +229,24 @@ note2:
 
 func TestCAssertCheck(t *testing.T) {
 	for _, test := range qtTests {
-		test.run(t)
+		t.Run("Assert: "+test.about, func(t *testing.T) {
+			tt := &testingT{}
+			ok := qt.Assert(tt, test.checker, test.comment...)
+			checkResult(t, ok, tt.fatalString(), test.expectedFailure)
+			if tt.errorString() != "" {
+				t.Fatalf("no error messages expected, but got %q", tt.errorString())
+			}
+		})
+		t.Run("Check: "+test.about, func(t *testing.T) {
+			tt := &testingT{}
+			ok := qt.Check(tt, test.checker, test.comment...)
+			checkResult(t, ok, tt.errorString(), test.expectedFailure)
+			if tt.fatalString() != "" {
+				t.Fatalf("no fatal messages expected, but got %q", tt.fatalString())
+			}
+		})
+
 	}
-}
-
-func (test qtTest[T]) run(t *testing.T) {
-	t.Run("Assert: "+test.about, func(t *testing.T) {
-		tt := &testingT{}
-		ok := qt.Assert(tt, test.got, test.checker, test.comment...)
-		checkResult(t, ok, tt.fatalString(), test.expectedFailure)
-		if tt.errorString() != "" {
-			t.Fatalf("no error messages expected, but got %q", tt.errorString())
-		}
-	})
-	t.Run("Check: "+test.about, func(t *testing.T) {
-		tt := &testingT{}
-		ok := qt.Check(tt, test.got, test.checker, test.comment...)
-		checkResult(t, ok, tt.errorString(), test.expectedFailure)
-		if tt.fatalString() != "" {
-			t.Fatalf("no fatal messages expected, but got %q", tt.fatalString())
-		}
-	})
-
 }
 
 func checkResult(t *testing.T, ok bool, got, want string) {
@@ -338,27 +345,21 @@ func assertBool(t testing.TB, got, want bool) {
 // testingChecker is a quicktest.Checker used in tests. It receives the
 // provided argNames, adds notes via the provided addNotes function, and when
 // the check is run the provided error is returned.
-type testingChecker[T any] struct {
-	paramNames []string
-	args       []any
-	addNotes   func(note func(key string, value any))
-	err        error
+type testingChecker struct {
+	args     []qt.Arg
+	addNotes func(note func(key string, value any))
+	err      error
 }
 
 // Check implements quicktest.Checker by returning the stored error.
-func (c *testingChecker[T]) Check(got T, note func(key string, value any)) error {
+func (c *testingChecker) Check(note func(key string, value any)) error {
 	if c.addNotes != nil {
 		c.addNotes(note)
 	}
 	return c.err
 }
 
-// ParamNames implements quicktest.Checker by returning the stored param names..
-func (c *testingChecker[T]) ParamNames() []string {
-	return c.paramNames
-}
-
-// Info implements quicktest.Checker by returning the stored args.
-func (c *testingChecker[T]) Args() []any {
+// Args implements quicktest.Checker by returning the stored args.
+func (c *testingChecker) Args() []qt.Arg {
 	return c.args
 }

@@ -14,7 +14,7 @@ import (
 
 func TestReportOutput(t *testing.T) {
 	tt := &testingT{}
-	qt.Assert(tt, 42, qt.Equals(47))
+	qt.Assert(tt, qt.Equals(42, 47))
 	want := `
 error:
   values are not equal
@@ -24,7 +24,7 @@ want:
   int(47)
 stack:
   $file:17
-    qt.Assert(tt, 42, qt.Equals(47))
+    qt.Assert(tt, qt.Equals(42, 47))
 `
 	assertReport(t, tt, want)
 }
@@ -34,7 +34,7 @@ func f1(t testing.TB) {
 }
 
 func f2(t testing.TB) {
-	qt.Assert(t, 42, qt.IsNil) // Real assertion here!
+	qt.Assert(t, qt.IsNil([]int{})) // Real assertion here!
 }
 
 func TestIndirectReportOutput(t *testing.T) {
@@ -44,10 +44,10 @@ func TestIndirectReportOutput(t *testing.T) {
 error:
   got non-nil value
 got:
-  int(42)
+  []int{}
 stack:
   $file:37
-    qt.Assert(t, 42, qt.IsNil)
+    qt.Assert(t, qt.IsNil([]int{}))
   $file:33
     f2(t)
   $file:42
@@ -59,8 +59,10 @@ stack:
 func TestMultilineReportOutput(t *testing.T) {
 	tt := &testingT{}
 	qt.Assert(tt,
-		"this string", // Comment 1.
-		qt.Equals("another string"),
+		qt.Equals(
+			"this string", // Comment 1.
+			"another string",
+		),
 		qt.Commentf("a comment"), // Comment 2.
 	) // Comment 3.
 	want := `
@@ -73,10 +75,12 @@ got:
 want:
   "another string"
 stack:
-  $file:61
+  /home/rogpeppe/src/go-quicktest/report_test.go:61
     qt.Assert(tt,
-        "this string", // Comment 1.
-        qt.Equals("another string"),
+        qt.Equals(
+            "this string", // Comment 1.
+            "another string",
+        ),
         qt.Commentf("a comment"), // Comment 2.
     )
 `
@@ -103,9 +107,9 @@ func TestCmpReportOutput(t *testing.T) {
 	}, {
 		AnInt: 1,
 	}, {}}
-	checker := qt.DeepEquals(wantExamples)
+	checker := qt.DeepEquals(gotExamples, wantExamples)
 	qt.SetVerbosity(checker, false)
-	qt.Assert(tt, gotExamples, checker)
+	qt.Assert(tt, checker)
 	want := `
 error:
   values are not deep equal
@@ -119,15 +123,15 @@ diff (-got +want):
   +         &{},
     }
 stack:
-  $file:108
-    qt.Assert(tt, gotExamples, checker)
+  $file:112
+    qt.Assert(tt, checker)
 `
 	assertReport(t, tt, want)
 }
 
 func TestTopLevelAssertReportOutput(t *testing.T) {
 	tt := &testingT{}
-	qt.Assert(tt, 42, qt.Equals(47))
+	qt.Assert(tt, qt.Equals(42, 47))
 	want := `
 error:
   values are not equal
@@ -136,8 +140,8 @@ got:
 want:
   int(47)
 stack:
-  $file:130
-    qt.Assert(tt, 42, qt.Equals(47))
+  $file:134
+    qt.Assert(tt, qt.Equals(42, 47))
 `
 	assertReport(t, tt, want)
 }

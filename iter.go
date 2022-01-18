@@ -18,49 +18,36 @@ type containerIter[T any] interface {
 	value() T
 }
 
-// newIter returns an iterator over x which must be a map, slice
-// or array.
-func newIter[T any](x any) (containerIter[T], error) {
-	v := reflect.ValueOf(x)
-	switch v.Kind() {
-	case reflect.Map:
-		if got, want := typeOf[T](), v.Type().Elem(); got != want {
-			return nil, fmt.Errorf("map value element has unexpected type; got %v want %v", got, want)
-		}
-		return &mapValueIter[T]{
-			iter: v.MapRange(),
-		}, nil
-	case reflect.Slice, reflect.Array:
-		if got, want := typeOf[T](), v.Type().Elem(); got != want {
-			return nil, fmt.Errorf("slice or array element has unexpected type; got %v want %v", got, want)
-		}
-		return &sliceIter[T]{
-			slice: v,
-			index: -1,
-		}, nil
-	default:
-		return nil, fmt.Errorf("map, slice or array required")
+func newSliceIter[T any](slice []T) *sliceIter[T] {
+	return &sliceIter[T]{
+		slice: slice,
+		index: -1,
 	}
 }
 
 // sliceIter implements containerIter for slices and arrays.
 type sliceIter[T any] struct {
-	slice reflect.Value
+	slice []T
 	index int
-	v     T
 }
 
 func (i *sliceIter[T]) next() bool {
 	i.index++
-	return i.index < i.slice.Len()
+	return i.index < len(i.slice)
 }
 
 func (i *sliceIter[T]) value() T {
-	return valueAs[T](i.slice.Index(i.index))
+	return i.slice[i.index]
 }
 
 func (i *sliceIter[T]) key() string {
 	return fmt.Sprintf("index %d", i.index)
+}
+
+func newMapIter[K comparable, V any](m map[K]V) containerIter[V] {
+	return mapValueIter[V]{
+		iter: reflect.ValueOf(m).MapRange(),
+	}
 }
 
 type mapValueIter[T any] struct {
