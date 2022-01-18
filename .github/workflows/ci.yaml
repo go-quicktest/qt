@@ -6,7 +6,7 @@ jobs:
     name: Build and Test
     strategy:
       matrix:
-        go: ['1.11', '1.12', '1.13', '1.14', '1.15', '1.16', '1.17']
+        go: ['1.18.x']
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2.4.0
@@ -21,6 +21,6 @@ jobs:
         restore-keys: |
           ubuntu-go-
     - name: Test
-      run: go test -mod readonly -race ./...
+      run: go test -race ./...
     - name: Test Verbose
-      run: go test -mod readonly -race -v ./...
+      run: go test -race -v ./...

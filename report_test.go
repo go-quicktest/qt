@@ -75,7 +75,7 @@ got:
 want:
   "another string"
 stack:
-  /home/rogpeppe/src/go-quicktest/report_test.go:61
+  $file:61
     qt.Assert(tt,
         qt.Equals(
             "this string", // Comment 1.
