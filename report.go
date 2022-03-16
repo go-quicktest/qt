@@ -1,6 +1,6 @@
 // Licensed under the MIT license, see LICENSE file for details.
 
-package quicktest
+package qt
 
 import (
 	"bytes"
@@ -17,12 +17,11 @@ import (
 
 // reportParams holds parameters for reporting a test error.
 type reportParams struct {
-	// argNames holds the names for the arguments passed to the checker.
-	argNames []string
-	// got holds the value that was checked.
-	got interface{}
-	// args holds all other arguments (if any) provided to the checker.
-	args []interface{}
+	// paramNames holds the names for the parameters of the checker
+	// (including got as the first name).
+	paramNames []string
+	// args holds all the arguments passed to the checker.
+	args []Arg
 	// comment optionally holds the comment passed when performing the check.
 	comment Comment
 	// notes holds notes added while doing the check.
@@ -52,7 +51,7 @@ func report(err error, p reportParams) string {
 // provided report parameters.
 func writeError(w io.Writer, err error, p reportParams) {
 	values := make(map[string]string)
-	printPair := func(key string, value interface{}) {
+	printPair := func(key string, value any) {
 		fmt.Fprintln(w, key+":")
 		var v string
 		if u, ok := value.(Unquoted); ok {
@@ -87,10 +86,9 @@ func writeError(w io.Writer, err error, p reportParams) {
 		// show output from args.
 		return
 	}
-
 	// Write provided args.
-	for i, arg := range append([]interface{}{p.got}, p.args...) {
-		printPair(p.argNames[i], arg)
+	for _, arg := range p.args {
+		printPair(arg.Name, arg.Value)
 	}
 }
 
@@ -109,7 +107,7 @@ func writeStack(w io.Writer) {
 	}
 	runtime.Callers(5, pc)
 	frames := runtime.CallersFrames(pc)
-	thisPackage := reflect.TypeOf(C{}).PkgPath() + "."
+	thisPackage := reflect.TypeOf(Unquoted("")).PkgPath() + "."
 	for {
 		frame, more := frames.Next()
 		if strings.HasPrefix(frame.Function, "testing.") {
@@ -184,7 +182,7 @@ func (sg *stmtGetter) Get(file string, line int) (string, error) {
 
 // prefixf formats the given string with the given args. It also inserts the
 // final newline if needed and indentation with the given prefix.
-func prefixf(prefix, format string, args ...interface{}) string {
+func prefixf(prefix, format string, args ...any) string {
 	var buf []byte
 	s := strings.TrimSuffix(fmt.Sprintf(format, args...), "\n")
 	for _, line := range strings.Split(s, "\n") {
@@ -198,7 +196,7 @@ func prefixf(prefix, format string, args ...interface{}) string {
 // note holds a key/value annotation.
 type note struct {
 	key   string
-	value interface{}
+	value any
 }
 
 // prefix is the string used to indent blocks of output.

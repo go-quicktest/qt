@@ -1,6 +1,6 @@
-// Licensed under the MIT license, see LICENSE file for details.
+// Licensed under the MIT license, see LICENCE file for details.
 
-package quicktest
+package qt
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 // invocation or testing execution itself (like wrong number or type of
 // arguments) rather than a real Check or Assert failure.
 // This helper can be used when implementing checkers.
-func BadCheckf(format string, a ...interface{}) error {
+func BadCheckf(format string, a ...any) error {
 	e := badCheck(fmt.Sprintf(format, a...))
 	return &e
 }

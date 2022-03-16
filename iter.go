@@ -1,6 +1,6 @@
 // Licensed under the MIT license, see LICENSE file for details.
 
-package quicktest
+package qt
 
 import (
 	"fmt"
@@ -9,47 +9,60 @@ import (
 
 // containerIter provides an interface for iterating over a container
 // (map, slice or array).
-type containerIter interface {
+type containerIter[T any] interface {
 	// next advances to the next item in the container.
 	next() bool
 	// key returns the current key as a string.
 	key() string
 	// value returns the current value.
-	value() reflect.Value
+	value() T
 }
 
-// newIter returns an iterator over x which must be a map, slice
-// or array.
-func newIter(x interface{}) (containerIter, error) {
-	v := reflect.ValueOf(x)
-	switch v.Kind() {
-	case reflect.Map:
-		return newMapIter(v), nil
-	case reflect.Slice, reflect.Array:
-		return &sliceIter{
-			index: -1,
-			v:     v,
-		}, nil
-	default:
-		return nil, fmt.Errorf("map, slice or array required")
+func newSliceIter[T any](slice []T) *sliceIter[T] {
+	return &sliceIter[T]{
+		slice: slice,
+		index: -1,
 	}
 }
 
 // sliceIter implements containerIter for slices and arrays.
-type sliceIter struct {
-	v     reflect.Value
+type sliceIter[T any] struct {
+	slice []T
 	index int
 }
 
-func (i *sliceIter) next() bool {
+func (i *sliceIter[T]) next() bool {
 	i.index++
-	return i.index < i.v.Len()
+	return i.index < len(i.slice)
 }
 
-func (i *sliceIter) value() reflect.Value {
-	return i.v.Index(i.index)
+func (i *sliceIter[T]) value() T {
+	return i.slice[i.index]
 }
 
-func (i *sliceIter) key() string {
+func (i *sliceIter[T]) key() string {
 	return fmt.Sprintf("index %d", i.index)
+}
+
+func newMapIter[K comparable, V any](m map[K]V) containerIter[V] {
+	return mapValueIter[V]{
+		iter: reflect.ValueOf(m).MapRange(),
+	}
+}
+
+type mapValueIter[T any] struct {
+	iter *reflect.MapIter
+	v    T
+}
+
+func (i mapValueIter[T]) next() bool {
+	return i.iter.Next()
+}
+
+func (i mapValueIter[T]) key() string {
+	return fmt.Sprintf("key %#v", i.iter.Key())
+}
+
+func (i mapValueIter[T]) value() T {
+	return valueAs[T](i.iter.Value())
 }

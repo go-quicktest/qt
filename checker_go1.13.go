@@ -1,13 +1,10 @@
 // Licensed under the MIT license, see LICENSE file for details.
 
-//go:build go1.13
-// +build go1.13
+package qt
 
-package quicktest
+import "errors"
 
-import (
-	"errors"
-)
+// TODO move this code into checker.go
 
 // ErrorAs checks that the error is or wraps a specific error type. If so, it
 // assigns it to the provided pointer. This is analogous to calling errors.As.
@@ -16,6 +13,7 @@ import (
 //
 //     // Checking for a specific error type
 //     c.Assert(err, qt.ErrorAs, new(*os.PathError))
+//     c.Assert(err, qt.ErrorAs, (*os.PathError)(nil))
 //
 //     // Checking fields on a specific error type
 //     var pathError *os.PathError
@@ -23,22 +21,25 @@ import (
 //         c.Assert(pathError.Path, Equals, "some_path")
 //     }
 //
-var ErrorAs Checker = &errorAsChecker{
-	argNames: []string{"got", "as"},
+func ErrorAs[T any](got error, want *T) Checker {
+	return &errorAsChecker[T]{
+		got:  got,
+		want: want,
+	}
 }
 
-type errorAsChecker struct {
-	argNames
+type errorAsChecker[T any] struct {
+	got  error
+	want *T
 }
 
 // Check implements Checker.Check by checking that got is an error whose error
 // chain matches args[0] and assigning it to args[0].
-func (c *errorAsChecker) Check(got interface{}, args []interface{}, note func(key string, value interface{})) (err error) {
-	if err := checkFirstArgIsError(got, note); err != nil {
-		return err
+func (c *errorAsChecker[T]) Check(note func(key string, value any)) (err error) {
+	if c.got == nil {
+		return errors.New("got nil error but want non-nil")
 	}
-
-	gotErr := got.(error)
+	gotErr := c.got.(error)
 	defer func() {
 		// A panic is raised when the target is not a pointer to an interface
 		// or error.
@@ -46,42 +47,50 @@ func (c *errorAsChecker) Check(got interface{}, args []interface{}, note func(ke
 			err = BadCheckf("%s", r)
 		}
 	}()
-	if !errors.As(gotErr, args[0]) {
+	want := c.want
+	if want == nil {
+		want = new(T)
+	}
+	if !errors.As(gotErr, want) {
 		return errors.New("wanted type is not found in error chain")
 	}
 	return nil
 }
 
-// ErrorIs checks that the error is or wraps a specific error value. This is
+func (c *errorAsChecker[T]) Args() []Arg {
+	return []Arg{{
+		Name:  "got",
+		Value: c.got,
+	}, {
+		Name:  "as type",
+		Value: Unquoted(typeOf[T]().String()),
+	}}
+}
+
+// ErrorIs returns a checker that checks that the error is or wraps a specific error value. This is
 // analogous to calling errors.Is.
 //
 // For instance:
 //
 //     c.Assert(err, qt.ErrorIs, os.ErrNotExist)
 //
-var ErrorIs Checker = &errorIsChecker{
-	argNames: []string{"got", "want"},
+func ErrorIs(got, want error) Checker {
+	return &errorIsChecker{
+		argPair: argPairOf(got, want),
+	}
 }
 
 type errorIsChecker struct {
-	argNames
+	argPair[error, error]
 }
 
 // Check implements Checker.Check by checking that got is an error whose error
 // chain matches args[0].
-func (c *errorIsChecker) Check(got interface{}, args []interface{}, note func(key string, value interface{})) error {
-	if err := checkFirstArgIsError(got, note); err != nil {
-		return err
+func (c *errorIsChecker) Check(note func(key string, value any)) error {
+	if c.got == nil {
+		return errors.New("got nil error but want non-nil")
 	}
-
-	gotErr := got.(error)
-	wantErr, ok := args[0].(error)
-	if !ok {
-		note("want", args[0])
-		return BadCheckf("second argument is not an error")
-	}
-
-	if !errors.Is(gotErr, wantErr) {
+	if !errors.Is(c.got, c.want) {
 		return errors.New("wanted error is not found in error chain")
 	}
 	return nil

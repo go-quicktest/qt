@@ -1,13 +1,13 @@
 // Licensed under the MIT license, see LICENSE file for details.
 
-package quicktest_test
+package qt_test
 
 import (
 	"errors"
 	"fmt"
 	"testing"
 
-	qt "github.com/frankban/quicktest"
+	"github.com/go-quicktest/qt"
 )
 
 func TestBadCheckf(t *testing.T) {

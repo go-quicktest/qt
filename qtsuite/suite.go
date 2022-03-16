@@ -11,7 +11,7 @@ an HTTP server before running each test, and tears it down afterwards:
 		url string
 	}
 
-	func (s *suite) Init(c *qt.C) {
+	func (s *suite) Init(t *testing.T) {
 		hnd := func(w http.ResponseWriter, req *http.Request) {
 			fmt.Fprintf(w, "%s %s", req.Method, req.URL.Path)
 		}
@@ -20,25 +20,25 @@ an HTTP server before running each test, and tears it down afterwards:
 		s.url = srv.URL
 	}
 
-	func (s *suite) TestGet(c *qt.C) {
-		c.Parallel()
+	func (s *suite) TestGet(t *testing.T) {
+		t.Parallel()
 		resp, err := http.Get(s.url)
-		c.Assert(err, qt.Equals, nil)
+		qt.Assert(t, err, qt.IsNil)
 		defer resp.Body.Close()
 		b, err := ioutil.ReadAll(resp.Body)
 		c.Assert(err, qt.Equals, nil)
 		c.Assert(string(b), qt.Equals, "GET /")
 	}
 
-	func (s *suite) TestHead(c *qt.C) {
-		c.Parallel()
+	func (s *suite) TestHead(t *testing.T) {
+		t.Parallel()
 		resp, err := http.Head(s.url + "/path")
-		c.Assert(err, qt.Equals, nil)
+		qt.Assert(t, err, qt.IsNil)
 		defer resp.Body.Close()
 		b, err := ioutil.ReadAll(resp.Body)
-		c.Assert(err, qt.Equals, nil)
-		c.Assert(string(b), qt.Equals, "")
-		c.Assert(resp.ContentLength, qt.Equals, int64(10))
+		qt.Assert(t, err, qt.IsNil)
+		qt.Assert(t, string(b), qt.Equals(""))
+		qt.Assert(t, resp.ContentLength, qt.Equals(int64(10)))
 	}
 
 The above code could be invoked from a test function like this:
@@ -52,10 +52,9 @@ package qtsuite
 import (
 	"reflect"
 	"strings"
+	"testing"
 	"unicode"
 	"unicode/utf8"
-
-	qt "github.com/frankban/quicktest"
 )
 
 // Run runs each test method defined on the given value as a separate
@@ -69,23 +68,23 @@ import (
 // if desired - it's OK to call c.Parallel().
 //
 // If suite has a method of the form
-//	func (T) Init(*quicktest.C)
+//	func (T) Init(*testing.T)
 // this method will be invoked before each test run.
-func Run(c *qt.C, suite interface{}) {
+func Run(t *testing.T, suite any) {
 	sv := reflect.ValueOf(suite)
 	st := sv.Type()
 	init, hasInit := st.MethodByName("Init")
 	if hasInit && !isValidMethod(init) {
-		c.Fatal("wrong signature for Init, must be Init(*quicktest.C)")
+		t.Fatal("wrong signature for Init, must be Init(*testing.T)")
 	}
 	for i := 0; i < st.NumMethod(); i++ {
 		m := st.Method(i)
 		if !isTestMethod(m) {
 			continue
 		}
-		c.Run(m.Name, func(c *qt.C) {
+		t.Run(m.Name, func(t *testing.T) {
 			if !isValidMethod(m) {
-				c.Fatalf("wrong signature for %s, must be %s(*quicktest.C)", m.Name, m.Name)
+				t.Fatalf("wrong signature for %s, must be %s(*testing.T)", m.Name, m.Name)
 			}
 
 			sv := sv
@@ -94,7 +93,7 @@ func Run(c *qt.C, suite interface{}) {
 				sv1.Elem().Set(sv.Elem())
 				sv = sv1
 			}
-			args := []reflect.Value{sv, reflect.ValueOf(c)}
+			args := []reflect.Value{sv, reflect.ValueOf(t)}
 			if hasInit {
 				init.Func.Call(args)
 			}
@@ -103,7 +102,7 @@ func Run(c *qt.C, suite interface{}) {
 	}
 }
 
-var cType = reflect.TypeOf(&qt.C{})
+var tType = reflect.TypeOf((*testing.T)(nil))
 
 func isTestMethod(m reflect.Method) bool {
 	if !strings.HasPrefix(m.Name, "Test") {
@@ -114,5 +113,5 @@ func isTestMethod(m reflect.Method) bool {
 }
 
 func isValidMethod(m reflect.Method) bool {
-	return m.Type.NumIn() == 2 && m.Type.NumOut() == 0 && m.Type.In(1) == cType
+	return m.Type.NumIn() == 2 && m.Type.NumOut() == 0 && m.Type.In(1) == tType
 }
