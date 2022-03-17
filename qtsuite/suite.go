@@ -23,11 +23,11 @@ an HTTP server before running each test, and tears it down afterwards:
 	func (s *suite) TestGet(t *testing.T) {
 		t.Parallel()
 		resp, err := http.Get(s.url)
-		qt.Assert(t, err, qt.IsNil)
+		qt.Assert(t, qt.IsNil(err))
 		defer resp.Body.Close()
 		b, err := ioutil.ReadAll(resp.Body)
-		c.Assert(err, qt.Equals, nil)
-		c.Assert(string(b), qt.Equals, "GET /")
+		qt.Assert(t, qt.IsNil(err))
+		qt.Assert(t, qt.Equals(string(b), "GET /"))
 	}
 
 	func (s *suite) TestHead(t *testing.T) {
@@ -36,15 +36,15 @@ an HTTP server before running each test, and tears it down afterwards:
 		qt.Assert(t, err, qt.IsNil)
 		defer resp.Body.Close()
 		b, err := ioutil.ReadAll(resp.Body)
-		qt.Assert(t, err, qt.IsNil)
-		qt.Assert(t, string(b), qt.Equals(""))
-		qt.Assert(t, resp.ContentLength, qt.Equals(int64(10)))
+		qt.Assert(t, qt.IsNil(err))
+		qt.Assert(t, qt.Equals(string(b), ""))
+		qt.Assert(t, qt.Equals(resp.ContentLength, 10))
 	}
 
 The above code could be invoked from a test function like this:
 
 	func TestHTTPMethods(t *testing.T) {
-		qtsuite.Run(qt.New(t), &suite{"http://example.com"})
+		qtsuite.Run(qt.New(t), &suite{})
 	}
 */
 package qtsuite
@@ -59,13 +59,13 @@ import (
 
 // Run runs each test method defined on the given value as a separate
 // subtest. A test is a method of the form
-//	func (T) TestXxx(*quicktest.C)
+//	func (T) TestXxx(*testing.T)
 // where Xxx does not start with a lowercase letter.
 //
 // If suite is a pointer, the value pointed to is copied before any
-// methods are invoked on it; a new copy is made for each test. This
+// methods are invoked on it: a new copy is made for each test. This
 // means that it is OK for tests to modify fields in suite concurrently
-// if desired - it's OK to call c.Parallel().
+// if desired - it's OK to call t.Parallel().
 //
 // If suite has a method of the form
 //	func (T) Init(*testing.T)

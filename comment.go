@@ -9,7 +9,7 @@ import "fmt"
 // to any check or assertion and will be displayed if the check or assertion
 // fails. For instance:
 //
-//     c.Assert(a, qt.Equals, 42, qt.Commentf("answer is not %d", 42))
+//     qt.Assert(t, qt.Equals(a, 42), qt.Commentf("answer is not %d", 42))
 //
 func Commentf(format string, args ...any) Comment {
 	return Comment{

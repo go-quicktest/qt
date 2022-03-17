@@ -12,7 +12,7 @@ import (
 func TestRunSuite(t *testing.T) {
 	var calls []call
 	qtsuite.Run(t, testSuite{calls: &calls})
-	qt.Assert(t, calls, qt.DeepEquals([]call{
+	qt.Assert(t, qt.DeepEquals(calls, []call{
 		{"Test1", 0},
 		{"Test4", 0},
 	}))
@@ -24,7 +24,7 @@ func TestRunSuiteEmbedded(t *testing.T) {
 		testSuite
 	}{testSuite: testSuite{calls: &calls}}
 	qtsuite.Run(t, suite)
-	qt.Assert(t, calls, qt.DeepEquals([]call{
+	qt.Assert(t, qt.DeepEquals(calls, []call{
 		{"Test1", 0},
 		{"Test4", 0},
 	}))
@@ -33,7 +33,7 @@ func TestRunSuiteEmbedded(t *testing.T) {
 func TestRunSuitePtr(t *testing.T) {
 	var calls []call
 	qtsuite.Run(t, &testSuite{calls: &calls})
-	qt.Assert(t, calls, qt.DeepEquals([]call{
+	qt.Assert(t, qt.DeepEquals(calls, []call{
 		{"Init", 0},
 		{"Test1", 1},
 		{"Init", 0},
@@ -72,12 +72,14 @@ type call struct {
 	Init int
 }
 
+// It's not clear how to test this.
+//
 //func TestInvalidInit(t *testing.T) {
 //	c := qt.New(t)
 //	tt := &testingT{}
 //	tc := qt.New(tt)
 //	qtsuite.Run(tc, invalidTestSuite{})
-//	c.Assert(tt.fatalString(), qt.Equals, "wrong signature for Init, must be Init(*testing.T)")
+//	qt.Assert(t, qt.Equals(tt.fatalString(), "wrong signature for Init, must be Init(*testing.T)"))
 //}
 //
 //type invalidTestSuite struct{}

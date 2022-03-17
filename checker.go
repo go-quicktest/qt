@@ -43,12 +43,16 @@ type Arg struct {
 //
 // For instance:
 //
-//     c.Assert(answer, qt.Equals(42))
-func Equals[T comparable](got, want T) Checker {
+//     qt.Assert(t, qt.Equals(answer, 42))
+//
+// Note that T is not constrained to be comparable because
+// we also allow comparing interface values which currently
+// do not satisfy that constraint.
+func Equals[T any](got, want T) Checker {
 	return &equalsChecker[T]{argPairOf(got, want)}
 }
 
-type equalsChecker[T comparable] struct {
+type equalsChecker[T any] struct {
 	argPair[T, T]
 }
 
@@ -59,7 +63,7 @@ func (c *equalsChecker[T]) Check(note func(key string, value any)) (err error) {
 			err = fmt.Errorf("%s", r)
 		}
 	}()
-	if c.got == c.want {
+	if any(c.got) == any(c.want) {
 		return nil
 	}
 	// Customize error message for non-nil errors.
@@ -98,7 +102,7 @@ func (c *equalsChecker[T]) Check(note func(key string, value any)) (err error) {
 //
 // Example call:
 //
-//     c.Assert(list, qt.DeepEquals([]int{42, 47}))
+//     qt.Assert(t, qt.DeepEquals(list, []int{42, 47}))
 func DeepEquals[T any](got, want T) Checker {
 	return CmpEquals(got, want)
 }
@@ -108,7 +112,7 @@ func DeepEquals[T any](got, want T) Checker {
 //
 // Example call:
 //
-//     c.Assert(list, qt.DeepEquals([]int{42, 47}, cmpopts.SortSlices))
+//     qt.Assert(t, qt.DeepEquals(list, []int{42, 47}, cmpopts.SortSlices))
 //
 // It can be useful to define your own version that uses a custom
 // set of compare options:
@@ -194,7 +198,7 @@ func (c *matchesChecker) Args() []Arg {
 //
 // For instance:
 //
-//     c.Assert(err, qt.ErrorMatches, "bad wolf .*")
+//     qt.Assert(t, qt.ErrorMatches(err, "bad wolf .*"))
 //
 func ErrorMatches(got error, want string) Checker {
 	return &errorMatchesChecker{
@@ -299,7 +303,7 @@ func (c isNilChecker[T]) Args() []Arg {
 //
 // For instance:
 //
-//     c.Assert(got, qt.IsNotNil)
+//     qt.Assert(t, qt.IsNotNil(got))
 //
 func IsNotNil[T any](got T) Checker {
 	return Not(IsNil(got))
@@ -353,7 +357,7 @@ func (c *hasLenChecker[T]) Args() []Arg {
 //
 // For instance:
 //
-//     c.Assert(myReader, qt.Implements[io.ReadCloser]())
+//     qt.Assert(t, qt.Implements[io.ReadCloser](myReader))
 //
 func Implements[I any](got any) Checker {
 	return &implementsChecker{
@@ -402,10 +406,10 @@ func (c *implementsChecker) Args() []Arg {
 // For instance:
 //
 //     // Check that an error from os.Open satisfies os.IsNotExist.
-//     c.Assert(err, qt.Satisfies(os.IsNotExist))
+//     qt.Assert(t, qt.Satisfies(err, os.IsNotExist))
 //
 //     // Check that a floating point number is a not-a-number.
-//     c.Assert(f, qt.Satisfies(math.IsNaN))
+//     qt.Assert(t, qt.Satisfies(f, math.IsNaN))
 //
 func Satisfies[T any](got T, f func(T) bool) Checker {
 	return &satisfiesChecker[T]{
@@ -441,7 +445,7 @@ func (c *satisfiesChecker[T]) Args() []Arg {
 //
 // For instance:
 //
-//     c.Assert(true, qt.IsTrue)
+//     qt.Assert(t, qt.IsTrue(1 == 1))
 //
 func IsTrue[T ~bool](got T) Checker {
 	return Equals(got, true)
@@ -451,8 +455,8 @@ func IsTrue[T ~bool](got T) Checker {
 //
 // For instance:
 //
-//     c.Assert(false, qt.IsFalse)
-//     c.Assert(IsValid(), qt.IsFalse)
+//     qt.Assert(t, qt.IsFalse(1 == 0))
+//     qt.Assert(t, qt.IsFalse(IsValid()))
 //
 func IsFalse[T ~bool](got T) Checker {
 	return Equals(got, false)
@@ -462,8 +466,8 @@ func IsFalse[T ~bool](got T) Checker {
 //
 // For instance:
 //
-//     c.Assert(got, qt.Not(qt.IsNil))
-//     c.Assert(answer, qt.Not(qt.Equals(42))
+//     qt.Assert(t, qt.Not(qt.IsNil(got)))
+//     qt.Assert(t, qt.Not(qt.Equals(answer, 42)))
 //
 func Not(c Checker) Checker {
 	// Not(Not(c)) becomes c
@@ -528,17 +532,20 @@ func SliceContains[T comparable](container []T, elem T) Checker {
 
 // MapContains returns a Checker that succeeds if the given
 // map contains the given value, by comparing for equality.
-func MapContains[K, V comparable](container map[K] V, elem V) Checker {
+func MapContains[K, V comparable](container map[K]V, elem V) Checker {
 	return MapAny(container, F2(Equals[V], elem))
 }
 
 // SliceAny returns a Checker that uses the given checker to check elements
 // of a slice. It succeeds if f(v) passes the check for any v in the slice.
 //
+// See the F2 function for a way to adapt a regular checker function
+// to the type expected for the f argument here.
+//
 // For example:
 //
-//     c.Assert(t, qt.SliceAny([]int{3,5,7,99}, qt.Equals(7)))
-//     c.Assert(t, qt.SliceAny([][]string{{"a", "b"}, {"c", "d"}}, qt.DeepEquals([]string{"c", "d"})))
+//     qt.Assert(t, qt.SliceAny([]int{3,5,7,99}, qt.F2(qt.Equals, 7)))
+//     qt.Assert(t, qt.SliceAny([][]string{{"a", "b"}, {"c", "d"}}, qt.F2(qt.DeepEquals, []string{"c", "d"})))
 //
 // See also All and Contains.
 func SliceAny[T any](container []T, f func(elem T) Checker) Checker {
@@ -548,24 +555,29 @@ func SliceAny[T any](container []T, f func(elem T) Checker) Checker {
 		},
 		container:   container,
 		elemChecker: f,
+		verbosity:   testing.Verbose,
 	}
 }
 
 // MapAny returns a Checker that uses checkers returned by f to check values
 // of a map. It succeeds if f(v) passes the check for any value v in the map.
 //
+// See the F2 function for a way to adapt a regular checker function
+// to the type expected for the f argument here.
+//
 // For example:
 //
-//     c.Assert(t, qt.MapAny(map[string]int{"x", 2}, qt.Equals(2)))
+//     qt.Assert(t, qt.MapAny(map[string]int{"x", 2}, qt.F2(qt.Equals, 2)))
 //
 // See also All and Contains.
-func MapAny[K comparable, V any](container map[K] V, f func(elem V) Checker) Checker {
+func MapAny[K comparable, V any](container map[K]V, f func(elem V) Checker) Checker {
 	return &anyChecker[V]{
 		newIter: func() containerIter[V] {
 			return newMapIter(container)
 		},
 		container:   container,
 		elemChecker: f,
+		verbosity:   testing.Verbose,
 	}
 }
 
@@ -573,6 +585,7 @@ type anyChecker[T any] struct {
 	newIter     func() containerIter[T]
 	container   any
 	elemChecker func(T) Checker
+	verbosity
 }
 
 // Check implements Checker.Check by checking that one of the elements of
@@ -584,7 +597,9 @@ func (c *anyChecker[T]) Check(note func(key string, value any)) error {
 		// Should we print all the failed check for all elements? If there's only
 		// one element in the container, the answer is probably yes,
 		// but let's leave it for now.
-		err := c.elemChecker(iter.value()).Check(
+		checker := c.elemChecker(iter.value())
+		setVerbosity(checker, c.verbosity())
+		err := checker.Check(
 			func(key string, value any) {},
 		)
 		if err == nil {
@@ -619,8 +634,11 @@ func (c *anyChecker[T]) Args() []Arg {
 //
 // For example:
 //
-//     c.Assert(qt.SliceAll([]int{3, 5, 8}, qt.Not(qt.Equals(0))))
-//     c.Assert(qt.SliceAll([][]string{{"a", "b"}, {"a", "b"}}, qt.DeepEquals([]string{"c", "d"})))
+//     qt.Assert(t, qt.SliceAny([]int{3,5,8}, func(e int) Checker {
+//          return qt.Not(qt.Equals(e, 0))
+//     })
+//
+//    qt.Assert(t, qt.SliceAll([][]string{{"a", "b"}, {"a", "b"}}, qt.F2(qt.DeepEquals, []string{"c", "d"})))
 func SliceAll[T any](container []T, f func(elem T) Checker) Checker {
 	return &allChecker[T]{
 		newIter: func() containerIter[T] {
@@ -628,6 +646,7 @@ func SliceAll[T any](container []T, f func(elem T) Checker) Checker {
 		},
 		container:   container,
 		elemChecker: f,
+		verbosity:   testing.Verbose,
 	}
 }
 
@@ -636,14 +655,15 @@ func SliceAll[T any](container []T, f func(elem T) Checker) Checker {
 //
 // For example:
 //
-//     c.Assert(t, qt.MapAll(map[string]int{"x", 2}, qt.Equals(2)))
-func MapAll[K comparable, V any](container map[K] V, f func(elem V) Checker) Checker {
+//     qt.Assert(t, qt.MapAll(map[string]int{"x", 2}, qt.F2(qt.Equals, 2)))
+func MapAll[K comparable, V any](container map[K]V, f func(elem V) Checker) Checker {
 	return &allChecker[V]{
 		newIter: func() containerIter[V] {
 			return newMapIter(container)
 		},
 		container:   container,
 		elemChecker: f,
+		verbosity:   testing.Verbose,
 	}
 }
 
@@ -651,6 +671,7 @@ type allChecker[T any] struct {
 	newIter     func() containerIter[T]
 	container   any
 	elemChecker func(T) Checker
+	verbosity
 }
 
 func (c *allChecker[T]) Check(notef func(key string, value any)) error {
@@ -659,7 +680,9 @@ func (c *allChecker[T]) Check(notef func(key string, value any)) error {
 		// we can add our own note at the start
 		// to say which element failed.
 		var notes []note
-		err := c.elemChecker(iter.value()).Check(
+		checker := c.elemChecker(iter.value())
+		setVerbosity(checker, c.verbosity())
+		err := checker.Check(
 			func(key string, val any) {
 				notes = append(notes, note{key, val})
 			},
@@ -711,7 +734,7 @@ func (c *allChecker[T]) Args() []Arg {
 //
 // For instance:
 //
-//     c.Assert(t, qt.JSONEquals(`{"First": 47.11}`, &MyStruct{First: 47.11}))
+//     qt.Assert(t, qt.JSONEquals(`{"First": 47.11}`, &MyStruct{First: 47.11}))
 //
 func JSONEquals[T []byte | string](got T, want any) Checker {
 	return CodecEquals(got, want, json.Marshal, json.Unmarshal)
@@ -730,7 +753,7 @@ func JSONEquals[T []byte | string](got T, want any) Checker {
 // another, using CmpEquals(opts) to perform the check.
 //
 // See JSONEquals for an example of this in use.
-func CodecEquals[T []byte|string](
+func CodecEquals[T []byte | string](
 	got T,
 	want any,
 	marshal func(any) ([]byte, error),
@@ -738,18 +761,20 @@ func CodecEquals[T []byte|string](
 	opts ...cmp.Option,
 ) Checker {
 	return &codecEqualChecker[T]{
-		argPair: argPairOf(got, want),
+		argPair:   argPairOf(got, want),
 		marshal:   marshal,
 		unmarshal: unmarshal,
 		opts:      opts,
+		verbosity: testing.Verbose,
 	}
 }
 
-type codecEqualChecker[T []byte|string] struct {
+type codecEqualChecker[T []byte | string] struct {
 	argPair[T, any]
 	marshal   func(any) ([]byte, error)
 	unmarshal func([]byte, any) error
 	opts      []cmp.Option
+	verbosity
 }
 
 func (c *codecEqualChecker[T]) Check(note func(key string, value any)) error {
@@ -765,7 +790,99 @@ func (c *codecEqualChecker[T]) Check(note func(key string, value any)) error {
 	if err := c.unmarshal([]byte(c.got), &gotContentVal); err != nil {
 		return fmt.Errorf("cannot unmarshal obtained contents: %v; %q", err, c.got)
 	}
-	return CmpEquals(gotContentVal, wantContentVal, c.opts...).Check(note)
+	cmpEq := CmpEquals(gotContentVal, wantContentVal, c.opts...).(*cmpEqualsChecker[any])
+	setVerbosity(cmpEq, c.verbosity())
+	return cmpEq.Check(note)
+}
+
+// ErrorAs checks that the error is or wraps a specific error type. If so, it
+// assigns it to the provided pointer. This is analogous to calling errors.As.
+//
+// For instance:
+//
+//     // Checking for a specific error type
+//     qt.Assert(t, qt.ErrorAs(err, new(*os.PathError)))
+//     qt.Assert(t, qt.ErrorAs[*os.PathError](err, nil))
+//
+//     // Checking fields on a specific error type
+//     var pathError *os.PathError
+//     if qt.Check(t, qt.ErrorAs(err, &pathError)) {
+//         qt.Assert(t, qt.Equals(pathError.Path, "some_path"))
+//     }
+//
+func ErrorAs[T any](got error, want *T) Checker {
+	return &errorAsChecker[T]{
+		got:  got,
+		want: want,
+	}
+}
+
+type errorAsChecker[T any] struct {
+	got  error
+	want *T
+}
+
+// Check implements Checker.Check by checking that got is an error whose error
+// chain matches args[0] and assigning it to args[0].
+func (c *errorAsChecker[T]) Check(note func(key string, value any)) (err error) {
+	if c.got == nil {
+		return errors.New("got nil error but want non-nil")
+	}
+	gotErr := c.got.(error)
+	defer func() {
+		// A panic is raised when the target is not a pointer to an interface
+		// or error.
+		if r := recover(); r != nil {
+			err = BadCheckf("%s", r)
+		}
+	}()
+	want := c.want
+	if want == nil {
+		want = new(T)
+	}
+	if !errors.As(gotErr, want) {
+		return errors.New("wanted type is not found in error chain")
+	}
+	return nil
+}
+
+func (c *errorAsChecker[T]) Args() []Arg {
+	return []Arg{{
+		Name:  "got",
+		Value: c.got,
+	}, {
+		Name:  "as type",
+		Value: Unquoted(typeOf[T]().String()),
+	}}
+}
+
+// ErrorIs returns a checker that checks that the error is or wraps a specific error value. This is
+// analogous to calling errors.Is.
+//
+// For instance:
+//
+//     qt.Assert(t, qt.ErrorIs(err, os.ErrNotExist))
+//
+func ErrorIs(got, want error) Checker {
+	return &errorIsChecker{
+		argPair: argPairOf(got, want),
+	}
+}
+
+type errorIsChecker struct {
+	argPair[error, error]
+}
+
+// Check implements Checker.Check by checking that got is an error whose error
+// chain matches args[0].
+func (c *errorIsChecker) Check(note func(key string, value any)) error {
+	if c.got == nil {
+		return errors.New("got nil error but want non-nil")
+	}
+	if !errors.Is(c.got, c.want) {
+		return errors.New("wanted error is not found in error chain")
+	}
+	return nil
 }
 
 type verbosity func() bool
@@ -832,5 +949,13 @@ func valueAs[T any](v reflect.Value) (r T) {
 func F2[Got, Want any](cf func(got Got, want Want) Checker, want Want) func(got Got) Checker {
 	return func(got Got) Checker {
 		return cf(got, want)
+	}
+}
+
+// setVerbosity mutates the checker c to set its verbosity
+// if it supports that.
+func setVerbosity(c Checker, v bool) {
+	if c, ok := c.(interface{ setVerbose(bool) }); ok {
+		c.setVerbose(v)
 	}
 }
