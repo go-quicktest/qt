@@ -41,10 +41,6 @@ type Arg struct {
 
 // Equals is a Checker checking equality of two comparable values.
 //
-// For instance:
-//
-//     qt.Assert(t, qt.Equals(answer, 42))
-//
 // Note that T is not constrained to be comparable because
 // we also allow comparing interface values which currently
 // do not satisfy that constraint.
@@ -99,27 +95,15 @@ func (c *equalsChecker[T]) Check(note func(key string, value any)) (err error) {
 
 // DeepEquals returns a Checker checking equality of two values
 // using cmp.DeepEqual.
-//
-// Example call:
-//
-//     qt.Assert(t, qt.DeepEquals(list, []int{42, 47}))
 func DeepEquals[T any](got, want T) Checker {
 	return CmpEquals(got, want)
 }
 
 // CmpEquals is like DeepEquals but allows custom compare options
-// to be passed too, to allow unexported fields to be compared, for example.
-//
-// Example call:
-//
-//     qt.Assert(t, qt.DeepEquals(list, []int{42, 47}, cmpopts.SortSlices))
+// to be passed too, to allow unexported fields to be compared.
 //
 // It can be useful to define your own version that uses a custom
-// set of compare options:
-//
-//	func deepEquals[T any](want T) Checker[T] {
-//		return qt.CmpEquals(want, cmp.AllowUnexported(myStruct{}))
-//	}
+// set of compare options. See example for details.
 func CmpEquals[T any](got, want T, opts ...cmp.Option) Checker {
 	return &cmpEqualsChecker[T]{
 		argPair:   argPairOf(got, want),
@@ -167,11 +151,6 @@ func ContentEquals[T any](got, want T) Checker {
 
 // Matches returns a Checker checking that the provided string or fmt.Stringer
 // matches the provided regular expression pattern.
-//
-// For instance:
-//
-//     qt.Assert(t, qt.Matches("these are the voyages", "these are .*"))
-//     qt.Assert(t, qt.Matches(net.ParseIP("1.2.3.4"), "1.*"))
 func Matches(got, want string) Checker {
 	return &matchesChecker{
 		got:  got,
@@ -195,11 +174,6 @@ func (c *matchesChecker) Args() []Arg {
 
 // ErrorMatches is a Checker checking that the provided value is an error whose
 // message matches the provided regular expression pattern.
-//
-// For instance:
-//
-//     qt.Assert(t, qt.ErrorMatches(err, "bad wolf .*"))
-//
 func ErrorMatches(got error, want string) Checker {
 	return &errorMatchesChecker{
 		got:  got,
@@ -227,11 +201,6 @@ func (c *errorMatchesChecker) Args() []Arg {
 
 // PanicMatches returns Checker checking that the provided function panics with a
 // message matching the provided regular expression pattern.
-//
-// For instance:
-//
-//     qt.Assert(t, qt.PanicMatches(func() {panic("bad wolf ..."), "bad wolf .*"))
-//
 func PanicMatches(f func(), want string) Checker {
 	return &panicMatchesChecker{
 		got:  f,
@@ -267,10 +236,6 @@ func (c *panicMatchesChecker) Args() []Arg {
 
 // IsNil is a Checker checking that the provided value is equal to nil.
 //
-// For instance:
-//
-//     qt.Assert(t, qt.IsNil(got))
-//
 // Note that an interface value containing a nil concrete
 // type is not considered to be nil.
 func IsNil[T any](got T) Checker {
@@ -300,23 +265,12 @@ func (c isNilChecker[T]) Args() []Arg {
 
 // IsNotNil returns a Checker checking that the provided value is not nil.
 // IsNotNil is the equivalent of qt.Not(qt.IsNil)
-//
-// For instance:
-//
-//     qt.Assert(t, qt.IsNotNil(got))
-//
 func IsNotNil[T any](got T) Checker {
 	return Not(IsNil(got))
 }
 
 // HasLen is a Checker checking that the provided value has the given length.
 // The value may be a slice, array, channel, map or string.
-//
-// For instance:
-//
-//     qt.Assert(t, qt.HasLen([]int{42, 47}, 2))
-//     qt.Assert(t, qt.HasLen(myMap, 42))
-//
 func HasLen[T any](got T, n int) Checker {
 	return &hasLenChecker[T]{
 		got:     got,
@@ -354,11 +308,6 @@ func (c *hasLenChecker[T]) Args() []Arg {
 
 // Implements checks that the provided value implements the
 // interface specified by the type parameter.
-//
-// For instance:
-//
-//     qt.Assert(t, qt.Implements[io.ReadCloser](myReader))
-//
 func Implements[I any](got any) Checker {
 	return &implementsChecker{
 		got:  got,
@@ -402,15 +351,6 @@ func (c *implementsChecker) Args() []Arg {
 // Satisfies returns a Checker checking that the provided value, when used as
 // argument of the provided predicate function, causes the function to return
 // true.
-//
-// For instance:
-//
-//     // Check that an error from os.Open satisfies os.IsNotExist.
-//     qt.Assert(t, qt.Satisfies(err, os.IsNotExist))
-//
-//     // Check that a floating point number is a not-a-number.
-//     qt.Assert(t, qt.Satisfies(f, math.IsNaN))
-//
 func Satisfies[T any](got T, f func(T) bool) Checker {
 	return &satisfiesChecker[T]{
 		got:       got,
@@ -442,33 +382,16 @@ func (c *satisfiesChecker[T]) Args() []Arg {
 }
 
 // IsTrue is a Checker checking that the provided value is true.
-//
-// For instance:
-//
-//     qt.Assert(t, qt.IsTrue(1 == 1))
-//
 func IsTrue[T ~bool](got T) Checker {
 	return Equals(got, true)
 }
 
 // IsFalse is a Checker checking that the provided value is false.
-//
-// For instance:
-//
-//     qt.Assert(t, qt.IsFalse(1 == 0))
-//     qt.Assert(t, qt.IsFalse(IsValid()))
-//
 func IsFalse[T ~bool](got T) Checker {
 	return Equals(got, false)
 }
 
 // Not returns a Checker negating the given Checker.
-//
-// For instance:
-//
-//     qt.Assert(t, qt.Not(qt.IsNil(got)))
-//     qt.Assert(t, qt.Not(qt.Equals(answer, 42)))
-//
 func Not(c Checker) Checker {
 	// Not(Not(c)) becomes c
 	if c, ok := c.(notChecker); ok {
@@ -526,7 +449,7 @@ func (c *stringContainsChecker[T]) Args() []Arg {
 
 // SliceContains returns a Checker that succeeds if the given
 // slice contains the given element, by comparing for equality.
-func SliceContains[T comparable](container []T, elem T) Checker {
+func SliceContains[T any](container []T, elem T) Checker {
 	return SliceAny(container, F2(Equals[T], elem))
 }
 
@@ -541,11 +464,6 @@ func MapContains[K, V comparable](container map[K]V, elem V) Checker {
 //
 // See the F2 function for a way to adapt a regular checker function
 // to the type expected for the f argument here.
-//
-// For example:
-//
-//     qt.Assert(t, qt.SliceAny([]int{3,5,7,99}, qt.F2(qt.Equals, 7)))
-//     qt.Assert(t, qt.SliceAny([][]string{{"a", "b"}, {"c", "d"}}, qt.F2(qt.DeepEquals, []string{"c", "d"})))
 //
 // See also All and Contains.
 func SliceAny[T any](container []T, f func(elem T) Checker) Checker {
@@ -564,10 +482,6 @@ func SliceAny[T any](container []T, f func(elem T) Checker) Checker {
 //
 // See the F2 function for a way to adapt a regular checker function
 // to the type expected for the f argument here.
-//
-// For example:
-//
-//     qt.Assert(t, qt.MapAny(map[string]int{"x", 2}, qt.F2(qt.Equals, 2)))
 //
 // See also All and Contains.
 func MapAny[K comparable, V any](container map[K]V, f func(elem V) Checker) Checker {
@@ -631,14 +545,6 @@ func (c *anyChecker[T]) Args() []Arg {
 // to check elements of a slice. It succeeds if all elements
 // of the slice pass the check.
 // On failure it prints the error from the first index that failed.
-//
-// For example:
-//
-//     qt.Assert(t, qt.SliceAny([]int{3,5,8}, func(e int) Checker {
-//          return qt.Not(qt.Equals(e, 0))
-//     })
-//
-//    qt.Assert(t, qt.SliceAll([][]string{{"a", "b"}, {"a", "b"}}, qt.F2(qt.DeepEquals, []string{"c", "d"})))
 func SliceAll[T any](container []T, f func(elem T) Checker) Checker {
 	return &allChecker[T]{
 		newIter: func() containerIter[T] {
@@ -652,10 +558,6 @@ func SliceAll[T any](container []T, f func(elem T) Checker) Checker {
 
 // MapAll returns a Checker that uses checkers returned by f to check values
 // of a map. It succeeds if f(v) passes the check for all values v in the map.
-//
-// For example:
-//
-//     qt.Assert(t, qt.MapAll(map[string]int{"x", 2}, qt.F2(qt.Equals, 2)))
 func MapAll[K comparable, V any](container map[K]V, f func(elem V) Checker) Checker {
 	return &allChecker[V]{
 		newIter: func() containerIter[V] {
@@ -731,11 +633,6 @@ func (c *allChecker[T]) Args() []Arg {
 //
 // It uses DeepEquals to do the comparison. If a more sophisticated
 // comparison is required, use CodecEquals directly.
-//
-// For instance:
-//
-//     qt.Assert(t, qt.JSONEquals(`{"First": 47.11}`, &MyStruct{First: 47.11}))
-//
 func JSONEquals[T []byte | string](got T, want any) Checker {
 	return CodecEquals(got, want, json.Marshal, json.Unmarshal)
 }
@@ -745,11 +642,11 @@ func JSONEquals[T []byte | string](got T, want any) Checker {
 // It expects two arguments: a byte slice or a string containing some
 // codec-marshaled data, and a Go value.
 //
-// It uses unmarshal to unmarshal the data into an any value.
+// It uses unmarshal to unmarshal the data into an interface{} value.
 // It marshals the Go value using marshal, then unmarshals the result into
 // an any value.
 //
-// It then checks that the two any values are deep-equal to one
+// It then checks that the two interface{} values are deep-equal to one
 // another, using CmpEquals(opts) to perform the check.
 //
 // See JSONEquals for an example of this in use.
@@ -797,19 +694,6 @@ func (c *codecEqualChecker[T]) Check(note func(key string, value any)) error {
 
 // ErrorAs checks that the error is or wraps a specific error type. If so, it
 // assigns it to the provided pointer. This is analogous to calling errors.As.
-//
-// For instance:
-//
-//     // Checking for a specific error type
-//     qt.Assert(t, qt.ErrorAs(err, new(*os.PathError)))
-//     qt.Assert(t, qt.ErrorAs[*os.PathError](err, nil))
-//
-//     // Checking fields on a specific error type
-//     var pathError *os.PathError
-//     if qt.Check(t, qt.ErrorAs(err, &pathError)) {
-//         qt.Assert(t, qt.Equals(pathError.Path, "some_path"))
-//     }
-//
 func ErrorAs[T any](got error, want *T) Checker {
 	return &errorAsChecker[T]{
 		got:  got,
@@ -858,11 +742,6 @@ func (c *errorAsChecker[T]) Args() []Arg {
 
 // ErrorIs returns a checker that checks that the error is or wraps a specific error value. This is
 // analogous to calling errors.Is.
-//
-// For instance:
-//
-//     qt.Assert(t, qt.ErrorIs(err, os.ErrNotExist))
-//
 func ErrorIs(got, want error) Checker {
 	return &errorIsChecker{
 		argPair: argPairOf(got, want),
