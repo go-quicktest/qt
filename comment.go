@@ -7,10 +7,7 @@ import "fmt"
 // Commentf returns a test comment whose output is formatted according to
 // the given format specifier and args. It may be provided as the last argument
 // to any check or assertion and will be displayed if the check or assertion
-// fails. For instance:
-//
-//     qt.Assert(t, qt.Equals(a, 42), qt.Commentf("answer is not %d", 42))
-//
+// fails.
 func Commentf(format string, args ...any) Comment {
 	return Comment{
 		format: format,

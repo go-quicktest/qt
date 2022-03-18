@@ -1,4 +1,4 @@
-/// Package qt implements assertion and other helpers wrapped
+// Package qt implements assertion and other helpers wrapped
 // around the standard library's testing types.
 package qt
 
