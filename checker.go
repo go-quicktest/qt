@@ -393,7 +393,7 @@ func IsFalse[T ~bool](got T) Checker {
 
 // Not returns a Checker negating the given Checker.
 func Not(c Checker) Checker {
-	// Not(Not(c)) becomes c
+	// Not(Not(c)) becomes c.
 	if c, ok := c.(notChecker); ok {
 		return c.Checker
 	}
@@ -414,6 +414,9 @@ func (c notChecker) Check(note func(key string, value any)) error {
 	if err != nil {
 		return nil
 	}
+	// if c.Checker == isNilChecker {
+	// 	return errors.New("got nil value but want non-nil")
+	// }
 	return errors.New("unexpected success")
 }
 

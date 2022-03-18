@@ -894,7 +894,7 @@ got:
 	checker: qt.IsNotNil[any](nil),
 	expectedCheckFailure: `
 error:
-  unexpected success
+  got nil value but want non-nil
 got:
   nil
 `,
@@ -1642,6 +1642,24 @@ got:
   e"other error"
 want:
   e"target"
+`,
+}, {
+	about:   "Not: failure",
+	checker: qt.Not(qt.Equals(42, 42)),
+	expectedCheckFailure: `
+error:
+  unexpected success
+got:
+  int(42)
+want:
+  <same as "got">
+`,
+}, {
+	about:   "Not: IsNil failure",
+	checker: qt.Not(qt.IsNil[*int](nil)),
+	expectedCheckFailure: `
+error:
+  got nil value but want non-nil
 `,
 }}
 
