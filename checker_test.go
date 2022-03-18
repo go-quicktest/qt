@@ -1255,6 +1255,23 @@ want:
   "d"
 `,
 }, {
+	about: "Contains with map and interface value",
+	checker: qt.MapContains(map[string]interface{}{
+		"a": "d",
+		"b": "a",
+	}, "d"),
+	expectedNegateFailure: `
+error:
+  unexpected success
+container:
+  map[string]interface {}{
+      "a": "d",
+      "b": "a",
+  }
+want:
+  "d"
+`,
+}, {
 	about:   "All slice equals",
 	checker: qt.SliceAll([]string{"a", "a"}, qt.F2(qt.Equals[string], "a")),
 	expectedNegateFailure: `

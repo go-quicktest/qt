@@ -455,7 +455,7 @@ func SliceContains[T any](container []T, elem T) Checker {
 
 // MapContains returns a Checker that succeeds if the given
 // map contains the given value, by comparing for equality.
-func MapContains[K, V comparable](container map[K]V, elem V) Checker {
+func MapContains[K comparable, V any](container map[K]V, elem V) Checker {
 	return MapAny(container, F2(Equals[V], elem))
 }
 
