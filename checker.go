@@ -39,6 +39,12 @@ type Arg struct {
 	Value any
 }
 
+// negatedError is implemented on checkers that want to customize the error that
+// is returned when they have succeeded but that success has been negated.
+type negatedError interface {
+	negatedError() error
+}
+
 // Equals is a Checker checking equality of two comparable values.
 //
 // Note that T is not constrained to be comparable because
@@ -263,6 +269,14 @@ func (c isNilChecker[T]) Args() []Arg {
 	return []Arg{{Name: "got", Value: c.got}}
 }
 
+func (c isNilChecker[T]) negatedError() error {
+	v := reflect.ValueOf(c.got)
+	if v.IsValid() {
+		return fmt.Errorf("got nil %s but want non-nil", v.Kind())
+	}
+	return errors.New("got <nil> but want non-nil")
+}
+
 // IsNotNil returns a Checker checking that the provided value is not nil.
 // IsNotNil is the equivalent of qt.Not(qt.IsNil)
 func IsNotNil[T any](got T) Checker {
@@ -414,9 +428,9 @@ func (c notChecker) Check(note func(key string, value any)) error {
 	if err != nil {
 		return nil
 	}
-	// if c.Checker == isNilChecker {
-	// 	return errors.New("got nil value but want non-nil")
-	// }
+	if c, ok := c.Checker.(negatedError); ok {
+		return c.negatedError()
+	}
 	return errors.New("unexpected success")
 }
 

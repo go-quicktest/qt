@@ -810,16 +810,16 @@ regexp:
 	checker: qt.IsNil(any(nil)),
 	expectedNegateFailure: `
 error:
-  unexpected success
+  got <nil> but want non-nil
 got:
   nil
 `,
 }, {
-	about:   "IsNil: nil struct",
+	about:   "IsNil: nil pointer to struct",
 	checker: qt.IsNil((*struct{})(nil)),
 	expectedNegateFailure: `
 error:
-  unexpected success
+  got nil ptr but want non-nil
 got:
   (*struct {})(nil)
 `,
@@ -828,7 +828,7 @@ got:
 	checker: qt.IsNil((func())(nil)),
 	expectedNegateFailure: `
 error:
-  unexpected success
+  got nil func but want non-nil
 got:
   func() {...}
 `,
@@ -837,7 +837,7 @@ got:
 	checker: qt.IsNil((map[string]string)(nil)),
 	expectedNegateFailure: `
 error:
-  unexpected success
+  got nil map but want non-nil
 got:
   map[string]string{}
 `,
@@ -846,7 +846,7 @@ got:
 	checker: qt.IsNil(([]int)(nil)),
 	expectedNegateFailure: `
 error:
-  unexpected success
+  got nil slice but want non-nil
 got:
   []int(nil)
 `,
@@ -894,7 +894,7 @@ got:
 	checker: qt.IsNotNil[any](nil),
 	expectedCheckFailure: `
 error:
-  got nil value but want non-nil
+  got <nil> but want non-nil
 got:
   nil
 `,
@@ -1659,7 +1659,9 @@ want:
 	checker: qt.Not(qt.IsNil[*int](nil)),
 	expectedCheckFailure: `
 error:
-  got nil value but want non-nil
+  got nil ptr but want non-nil
+got:
+  (*int)(nil)
 `,
 }}
 
