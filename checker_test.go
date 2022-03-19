@@ -1644,6 +1644,28 @@ want:
   e"target"
 `,
 }, {
+	about:   "ErrorIs: nil to nil match",
+	checker: qt.ErrorIs(nil, nil),
+	expectedNegateFailure: `
+error:
+  unexpected success
+got:
+  nil
+want:
+  <same as "got">
+`,
+}, {
+	about:   "ErrorIs: non-nil to nil mismatch",
+	checker: qt.ErrorIs(targetErr, nil),
+	expectedCheckFailure: `
+error:
+  wanted error is not found in error chain
+got:
+  e"target"
+want:
+  nil
+`,
+}, {
 	about:   "Not: failure",
 	checker: qt.Not(qt.Equals(42, 42)),
 	expectedCheckFailure: `

@@ -772,7 +772,7 @@ type errorIsChecker struct {
 // Check implements Checker.Check by checking that got is an error whose error
 // chain matches args[0].
 func (c *errorIsChecker) Check(note func(key string, value any)) error {
-	if c.got == nil {
+	if c.got == nil && c.want != nil {
 		return errors.New("got nil error but want non-nil")
 	}
 	if !errors.Is(c.got, c.want) {
