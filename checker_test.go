@@ -16,6 +16,7 @@ import (
 	"github.com/go-quicktest/qt"
 )
 
+// errTarget is an error implemented as a pointer.
 type errTarget struct {
 	msg string
 }
@@ -24,6 +25,7 @@ func (e *errTarget) Error() string {
 	return "ptr: " + e.msg
 }
 
+// errTargetNonPtr is an error implemented as a non-pointer.
 type errTargetNonPtr struct {
 	msg string
 }
@@ -31,11 +33,6 @@ type errTargetNonPtr struct {
 func (e errTargetNonPtr) Error() string {
 	return "non ptr: " + e.msg
 }
-
-var (
-	targetErr       = &errTarget{msg: "target"}
-	targetNonPtrErr = &errTargetNonPtr{msg: "target"}
-)
 
 // Fooer is an interface for testing.
 type Fooer interface {
@@ -46,27 +43,6 @@ type cmpType struct {
 	Strings []any
 	Ints    []int
 }
-
-var (
-	goTime = time.Date(2012, 3, 28, 0, 0, 0, 0, time.UTC)
-	chInt  = func() chan int {
-		ch := make(chan int, 4)
-		ch <- 42
-		ch <- 47
-		return ch
-	}()
-	sameInts = cmpopts.SortSlices(func(x, y int) bool {
-		return x < y
-	})
-	cmpEqualsGot = cmpType{
-		Strings: []any{"who", "dalek"},
-		Ints:    []int{42, 47},
-	}
-	cmpEqualsWant = cmpType{
-		Strings: []any{"who", "dalek"},
-		Ints:    []int{42},
-	}
-)
 
 type InnerJSON struct {
 	First  string
@@ -80,6 +56,31 @@ type OuterJSON struct {
 }
 
 type boolean bool
+
+var (
+	targetErr       = &errTarget{msg: "target"}
+	targetNonPtrErr = &errTargetNonPtr{msg: "target"}
+
+	goTime = time.Date(2012, 3, 28, 0, 0, 0, 0, time.UTC)
+	chInt  = func() chan int {
+		ch := make(chan int, 4)
+		ch <- 42
+		ch <- 47
+		return ch
+	}()
+	sameInts = cmpopts.SortSlices(func(x, y int) bool {
+		return x < y
+	})
+
+	cmpEqualsGot = cmpType{
+		Strings: []any{"who", "dalek"},
+		Ints:    []int{42, 47},
+	}
+	cmpEqualsWant = cmpType{
+		Strings: []any{"who", "dalek"},
+		Ints:    []int{42},
+	}
+)
 
 var checkerTests = []struct {
 	about                 string

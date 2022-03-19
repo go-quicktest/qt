@@ -18,7 +18,7 @@ import (
 
 // Checker is implemented by types used as part of Check/Assert invocations.
 type Checker interface {
-	// Check checks that the provided argument passes the check.
+	// Check runs the check for this checker.
 	// On failure, the returned error is printed along with
 	// the checker arguments (obtained by calling Args)
 	// and key-value pairs added by calling the note function.
@@ -45,7 +45,7 @@ type negatedError interface {
 	negatedError() error
 }
 
-// Equals is a Checker checking equality of two comparable values.
+// Equals returns a Checker checking equality of two comparable values.
 //
 // Note that T is not constrained to be comparable because
 // we also allow comparing interface values which currently
@@ -60,7 +60,8 @@ type equalsChecker[T any] struct {
 
 func (c *equalsChecker[T]) Check(note func(key string, value any)) (err error) {
 	defer func() {
-		// A panic is raised when the provided values are interfaces containing non-comparable values.
+		// A panic is raised when the provided values are interfaces containing
+		// non-comparable values.
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%s", r)
 		}
@@ -155,8 +156,8 @@ func ContentEquals[T any](got, want T) Checker {
 	}))
 }
 
-// Matches returns a Checker checking that the provided string or fmt.Stringer
-// matches the provided regular expression pattern.
+// Matches returns a Checker checking that the provided string matches the
+// provided regular expression pattern.
 func Matches(got, want string) Checker {
 	return &matchesChecker{
 		got:  got,
@@ -168,8 +169,6 @@ type matchesChecker struct {
 	got, want string
 }
 
-// Check implements Checker.Check by checking that got is a string or a
-// fmt.Stringer and that it matches args[0].
 func (c *matchesChecker) Check(note func(key string, value any)) error {
 	return match(c.got, c.want, "value does not match regexp", note)
 }
@@ -178,8 +177,8 @@ func (c *matchesChecker) Args() []Arg {
 	return []Arg{{Name: "got value", Value: c.got}, {Name: "regexp", Value: c.want}}
 }
 
-// ErrorMatches is a Checker checking that the provided value is an error whose
-// message matches the provided regular expression pattern.
+// ErrorMatches returns a Checker checking that the provided value is an error
+// whose message matches the provided regular expression pattern.
 func ErrorMatches(got error, want string) Checker {
 	return &errorMatchesChecker{
 		got:  got,
@@ -192,8 +191,6 @@ type errorMatchesChecker struct {
 	want string
 }
 
-// Check implements Checker.Check by checking that c.got is an error whose
-// Error() matches args[0].
 func (c *errorMatchesChecker) Check(note func(key string, value any)) error {
 	if c.got == nil {
 		return errors.New("got nil error but want non-nil")
@@ -205,8 +202,8 @@ func (c *errorMatchesChecker) Args() []Arg {
 	return []Arg{{Name: "got error", Value: c.got}, {Name: "regexp", Value: c.want}}
 }
 
-// PanicMatches returns Checker checking that the provided function panics with a
-// message matching the provided regular expression pattern.
+// PanicMatches returns a Checker checking that the provided function panics
+// with a message matching the provided regular expression pattern.
 func PanicMatches(f func(), want string) Checker {
 	return &panicMatchesChecker{
 		got:  f,
@@ -219,8 +216,6 @@ type panicMatchesChecker struct {
 	want string
 }
 
-// Check implements Checker.Check by checking that got is a func() that panics
-// with a message matching args[0].
 func (c *panicMatchesChecker) Check(note func(key string, value any)) (err error) {
 	defer func() {
 		r := recover()
@@ -240,7 +235,7 @@ func (c *panicMatchesChecker) Args() []Arg {
 	return []Arg{{Name: "function", Value: c.got}, {Name: "regexp", Value: c.want}}
 }
 
-// IsNil is a Checker checking that the provided value is equal to nil.
+// IsNil returns a Checker checking that the provided value is equal to nil.
 //
 // Note that an interface value containing a nil concrete
 // type is not considered to be nil.
@@ -278,13 +273,13 @@ func (c isNilChecker[T]) negatedError() error {
 }
 
 // IsNotNil returns a Checker checking that the provided value is not nil.
-// IsNotNil is the equivalent of qt.Not(qt.IsNil)
+// IsNotNil(v) is the equivalent of qt.Not(qt.IsNil(v)).
 func IsNotNil[T any](got T) Checker {
 	return Not(IsNil(got))
 }
 
-// HasLen is a Checker checking that the provided value has the given length.
-// The value may be a slice, array, channel, map or string.
+// HasLen returns a Checker checking that the provided value has the given
+// length. The value may be a slice, array, channel, map or string.
 func HasLen[T any](got T, n int) Checker {
 	return &hasLenChecker[T]{
 		got:     got,
@@ -297,10 +292,9 @@ type hasLenChecker[T any] struct {
 	wantLen int
 }
 
-// Check implements Checker.Check by checking that len(c.got) == c.wantLen.
 func (c *hasLenChecker[T]) Check(note func(key string, value any)) (err error) {
-	// TODO we're deliberately not allowing
-	// HasLen(interfaceValue) here. Perhaps we shoud?
+	// TODO we're deliberately not allowing HasLen(interfaceValue) here.
+	// Perhaps we should?
 	v := reflect.ValueOf(&c.got).Elem()
 	switch v.Kind() {
 	case reflect.Array, reflect.Chan, reflect.Map, reflect.Slice, reflect.String:
@@ -320,7 +314,7 @@ func (c *hasLenChecker[T]) Args() []Arg {
 	return []Arg{{Name: "got", Value: c.got}, {Name: "want length", Value: c.wantLen}}
 }
 
-// Implements checks that the provided value implements the
+// Implements returns a Checker checking that the provided value implements the
 // interface specified by the type parameter.
 func Implements[I any](got any) Checker {
 	return &implementsChecker{
@@ -336,8 +330,6 @@ type implementsChecker struct {
 
 var emptyInterface = reflect.TypeOf((*any)(nil)).Elem()
 
-// Check implements Checker.Check by checking that got implements the
-// interface pointed to by args[0].
 func (c *implementsChecker) Check(note func(key string, value any)) (err error) {
 	if c.got == nil {
 		note("error", Unquoted("got nil value but want non-nil"))
@@ -395,12 +387,12 @@ func (c *satisfiesChecker[T]) Args() []Arg {
 	}}
 }
 
-// IsTrue is a Checker checking that the provided value is true.
+// IsTrue returns a Checker checking that the provided value is true.
 func IsTrue[T ~bool](got T) Checker {
 	return Equals(got, true)
 }
 
-// IsFalse is a Checker checking that the provided value is false.
+// IsFalse returns a Checker checking that the provided value is false.
 func IsFalse[T ~bool](got T) Checker {
 	return Equals(got, false)
 }
@@ -434,8 +426,8 @@ func (c notChecker) Check(note func(key string, value any)) error {
 	return errors.New("unexpected success")
 }
 
-// StringContains is a checker that checks that a map, slice, array
-// or string contains the given substring.
+// StringContains returns a Checker checking that the given string contains the
+// given substring.
 func StringContains[T ~string](got, substr T) Checker {
 	return &stringContainsChecker[T]{
 		got:    got,
@@ -470,8 +462,8 @@ func SliceContains[T any](container []T, elem T) Checker {
 	return SliceAny(container, F2(Equals[T], elem))
 }
 
-// MapContains returns a Checker that succeeds if the given
-// map contains the given value, by comparing for equality.
+// MapContains returns a Checker that succeeds if the given value is
+// contained in the values of the given map, by comparing for equality.
 func MapContains[K comparable, V any](container map[K]V, elem V) Checker {
 	return MapAny(container, F2(Equals[V], elem))
 }
@@ -482,7 +474,7 @@ func MapContains[K comparable, V any](container map[K]V, elem V) Checker {
 // See the F2 function for a way to adapt a regular checker function
 // to the type expected for the f argument here.
 //
-// See also All and Contains.
+// See also SliceAll and SliceContains.
 func SliceAny[T any](container []T, f func(elem T) Checker) Checker {
 	return &anyChecker[T]{
 		newIter: func() containerIter[T] {
@@ -500,7 +492,7 @@ func SliceAny[T any](container []T, f func(elem T) Checker) Checker {
 // See the F2 function for a way to adapt a regular checker function
 // to the type expected for the f argument here.
 //
-// See also All and Contains.
+// See also MapAll and MapContains.
 func MapAny[K comparable, V any](container map[K]V, f func(elem V) Checker) Checker {
 	return &anyChecker[V]{
 		newIter: func() containerIter[V] {
@@ -519,12 +511,10 @@ type anyChecker[T any] struct {
 	verbosity
 }
 
-// Check implements Checker.Check by checking that one of the elements of
-// got passes the c.elemChecker check.
 func (c *anyChecker[T]) Check(note func(key string, value any)) error {
 	for iter := c.newIter(); iter.next(); {
 		// For the time being, discard the notes added by the sub-checker,
-		// because it's not clear what a good behaviour would be.
+		// because it's not clear what a good behavior would be.
 		// Should we print all the failed check for all elements? If there's only
 		// one element in the container, the answer is probably yes,
 		// but let's leave it for now.
@@ -644,17 +634,16 @@ func (c *allChecker[T]) Args() []Arg {
 	return args
 }
 
-// JSONEquals is a checker that checks whether a string or byte slice
-// is JSON-equivalent to a Go value. See CodecEquals for
-// more information.
+// JSONEquals returns a Checker that checks whether a string or byte slice is
+// JSON-equivalent to a Go value. See CodecEquals for more information.
 //
-// It uses DeepEquals to do the comparison. If a more sophisticated
-// comparison is required, use CodecEquals directly.
+// It uses DeepEquals to do the comparison. If a more sophisticated comparison
+// is required, use CodecEquals directly.
 func JSONEquals[T []byte | string](got T, want any) Checker {
 	return CodecEquals(got, want, json.Marshal, json.Unmarshal)
 }
 
-// CodecEquals returns a checker that checks for codec value equivalence.
+// CodecEquals returns a Checker that checks for codec value equivalence.
 //
 // It expects two arguments: a byte slice or a string containing some
 // codec-marshaled data, and a Go value.
@@ -709,8 +698,9 @@ func (c *codecEqualChecker[T]) Check(note func(key string, value any)) error {
 	return cmpEq.Check(note)
 }
 
-// ErrorAs checks that the error is or wraps a specific error type. If so, it
-// assigns it to the provided pointer. This is analogous to calling errors.As.
+// ErrorAs retruns a Checker checking that the error is or wraps a specific
+// error type. If so, it assigns it to the provided pointer. This is analogous
+// to calling errors.As.
 func ErrorAs[T any](got error, want *T) Checker {
 	return &errorAsChecker[T]{
 		got:  got,
@@ -723,8 +713,6 @@ type errorAsChecker[T any] struct {
 	want *T
 }
 
-// Check implements Checker.Check by checking that got is an error whose error
-// chain matches args[0] and assigning it to args[0].
 func (c *errorAsChecker[T]) Check(note func(key string, value any)) (err error) {
 	if c.got == nil {
 		return errors.New("got nil error but want non-nil")
@@ -757,8 +745,8 @@ func (c *errorAsChecker[T]) Args() []Arg {
 	}}
 }
 
-// ErrorIs returns a checker that checks that the error is or wraps a specific error value. This is
-// analogous to calling errors.Is.
+// ErrorIs returns a Checker that checks that the error is or wraps a specific
+// error value. This is analogous to calling errors.Is.
 func ErrorIs(got, want error) Checker {
 	return &errorIsChecker{
 		argPair: argPairOf(got, want),
@@ -769,8 +757,6 @@ type errorIsChecker struct {
 	argPair[error, error]
 }
 
-// Check implements Checker.Check by checking that got is an error whose error
-// chain matches args[0].
 func (c *errorIsChecker) Check(note func(key string, value any)) error {
 	if c.got == nil && c.want != nil {
 		return errors.New("got nil error but want non-nil")
@@ -840,7 +826,7 @@ func valueAs[T any](v reflect.Value) (r T) {
 }
 
 // F2 factors a 2-argument checker function into a single argument function suitable
-// for passing to an Any or All checker. Whenever the returned function is called,
+// for passing to an *Any or *All checker. Whenever the returned function is called,
 // cf is called with arguments (got, want).
 func F2[Got, Want any](cf func(got Got, want Want) Checker, want Want) func(got Got) Checker {
 	return func(got Got) Checker {
