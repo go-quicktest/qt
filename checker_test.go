@@ -21,11 +21,20 @@ type errTarget struct {
 }
 
 func (e *errTarget) Error() string {
-	return e.msg
+	return "ptr: " + e.msg
+}
+
+type errTargetNonPtr struct {
+	msg string
+}
+
+func (e errTargetNonPtr) Error() string {
+	return "non ptr: " + e.msg
 }
 
 var (
-	targetErr = &errTarget{msg: "target"}
+	targetErr       = &errTarget{msg: "target"}
+	targetNonPtrErr = &errTargetNonPtr{msg: "target"}
 )
 
 // Fooer is an interface for testing.
@@ -1551,7 +1560,7 @@ want:
 error:
   unexpected success
 got:
-  e"target"
+  e"ptr: target"
 as type:
   *qt_test.errTarget
 `,
@@ -1562,7 +1571,7 @@ as type:
 error:
   unexpected success
 got:
-  e"wrapped: target"
+  e"wrapped: ptr: target"
 as type:
   *qt_test.errTarget
 `,
@@ -1589,6 +1598,17 @@ as type:
   *qt_test.errTarget
 `,
 }, {
+	about:   "ErrorAs: fails if mismatch with a non-pointer error implementation",
+	checker: qt.ErrorAs(errors.New("other error"), new(errTargetNonPtr)),
+	expectedCheckFailure: `
+error:
+  wanted type is not found in error chain
+got:
+  e"other error"
+as type:
+  qt_test.errTargetNonPtr
+`,
+}, {
 	about:   "ErrorAs: bad check if invalid as",
 	checker: qt.ErrorAs(targetErr, &struct{}{}),
 	expectedCheckFailure: `
@@ -1606,7 +1626,7 @@ error:
 error:
   unexpected success
 got:
-  e"target"
+  e"ptr: target"
 want:
   <same as "got">
 `,
@@ -1617,9 +1637,9 @@ want:
 error:
   unexpected success
 got:
-  e"wrapped: target"
+  e"wrapped: ptr: target"
 want:
-  e"target"
+  e"ptr: target"
 `,
 }, {
 	about:   "ErrorIs: fails if nil error",
@@ -1630,7 +1650,7 @@ error:
 got:
   nil
 want:
-  e"target"
+  e"ptr: target"
 `,
 }, {
 	about:   "ErrorIs: fails if mismatch",
@@ -1641,7 +1661,7 @@ error:
 got:
   e"other error"
 want:
-  e"target"
+  e"ptr: target"
 `,
 }, {
 	about:   "ErrorIs: nil to nil match",
@@ -1661,7 +1681,7 @@ want:
 error:
   wanted error is not found in error chain
 got:
-  e"target"
+  e"ptr: target"
 want:
   nil
 `,
