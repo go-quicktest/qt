@@ -2,6 +2,7 @@
 
 package qt
 
-var Prefixf = prefixf
-
-var SetVerbosity = setVerbosity
+var (
+	Prefixf      = prefixf
+	SetVerbosity = setVerbosity
+)

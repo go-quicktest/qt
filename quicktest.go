@@ -1,4 +1,4 @@
-// Package qt implements assertion and other helpers wrapped
+// Package qt implements assertions and other helpers wrapped
 // around the standard library's testing types.
 package qt
 
@@ -30,9 +30,7 @@ func Check(t testing.TB, checker Checker, comment ...Comment) bool {
 
 func check(t testing.TB, p checkParams) bool {
 	t.Helper()
-	rp := reportParams{
-		format: Format,
-	}
+	var rp reportParams
 	// Allow checkers to annotate messages.
 	note := func(key string, value any) {
 		rp.notes = append(rp.notes, note{

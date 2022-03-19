@@ -273,11 +273,11 @@ func ExampleErrorAs() {
 	runExampleTest(func(t testing.TB) {
 		_, err := os.Open("/non-existent-file")
 
-		// Checking for a specific error type
+		// Checking for a specific error type.
 		qt.Assert(t, qt.ErrorAs(err, new(*os.PathError)))
 		qt.Assert(t, qt.ErrorAs[*os.PathError](err, nil))
 
-		// Checking fields on a specific error type
+		// Checking fields on a specific error type.
 		var pathError *os.PathError
 		if qt.Check(t, qt.ErrorAs(err, &pathError)) {
 			qt.Assert(t, qt.Equals(pathError.Path, "/non-existent-file"))

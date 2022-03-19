@@ -13,7 +13,7 @@ import (
 )
 
 // Format formats the given value as a string. It is used to print values in
-// test failures unless that's changed by calling C.SetFormat.
+// test failures.
 func Format(v any) string {
 	switch v := v.(type) {
 	case error:
@@ -87,5 +87,3 @@ func checkStringCall(v any, f func() string) (s string, ok bool) {
 	}()
 	return f(), true
 }
-
-type formatFunc func(any) string
