@@ -15,7 +15,7 @@ import (
 var qtTests = []struct {
 	about           string
 	checker         qt.Checker
-	comment         []qt.Comment
+	comments        []qt.Comment
 	expectedFailure string
 }{{
 	about:   "success",
@@ -43,9 +43,9 @@ want:
   "47%y"
 `,
 }, {
-	about:   "failure with comment",
-	checker: qt.Equals(true, false),
-	comment: []qt.Comment{qt.Commentf("apparently %v != %v", true, false)},
+	about:    "failure with comment",
+	checker:  qt.Equals(true, false),
+	comments: []qt.Comment{qt.Commentf("apparently %v != %v", true, false)},
 	expectedFailure: `
 error:
   values are not equal
@@ -57,9 +57,9 @@ want:
   bool(false)
 `,
 }, {
-	about:   "another failure with comment",
-	checker: qt.IsNil(any(42)),
-	comment: []qt.Comment{qt.Commentf("bad wolf: %d", 42)},
+	about:    "another failure with comment",
+	checker:  qt.IsNil(any(42)),
+	comments: []qt.Comment{qt.Commentf("bad wolf: %d", 42)},
 	expectedFailure: `
 error:
   got non-nil value
@@ -69,9 +69,9 @@ got:
   int(42)
 `,
 }, {
-	about:   "failure with constant comment",
-	checker: qt.IsNil(any("something")),
-	comment: []qt.Comment{qt.Commentf("these are the voyages")},
+	about:    "failure with constant comment",
+	checker:  qt.IsNil(any("something")),
+	comments: []qt.Comment{qt.Commentf("these are the voyages")},
 	expectedFailure: `
 error:
   got non-nil value
@@ -81,14 +81,31 @@ got:
   "something"
 `,
 }, {
-	about:   "failure with empty comment",
-	checker: qt.IsNil(any(47)),
-	comment: []qt.Comment{qt.Commentf("")},
+	about:    "failure with empty comment",
+	checker:  qt.IsNil(any(47)),
+	comments: []qt.Comment{qt.Commentf("")},
 	expectedFailure: `
 error:
   got non-nil value
 got:
   int(47)
+`,
+}, {
+	about:   "failure with multiple comments",
+	checker: qt.IsNil(any(42)),
+	comments: []qt.Comment{
+		qt.Commentf("bad wolf: %d", 42),
+		qt.Commentf("second comment"),
+	},
+	expectedFailure: `
+error:
+  got non-nil value
+comment:
+  bad wolf: 42
+comment:
+  second comment
+got:
+  int(42)
 `,
 }, {
 	about: "nil checker",
@@ -231,7 +248,7 @@ func TestCAssertCheck(t *testing.T) {
 	for _, test := range qtTests {
 		t.Run("Assert: "+test.about, func(t *testing.T) {
 			tt := &testingT{}
-			ok := qt.Assert(tt, test.checker, test.comment...)
+			ok := qt.Assert(tt, test.checker, test.comments...)
 			checkResult(t, ok, tt.fatalString(), test.expectedFailure)
 			if tt.errorString() != "" {
 				t.Fatalf("no error messages expected, but got %q", tt.errorString())
@@ -239,7 +256,7 @@ func TestCAssertCheck(t *testing.T) {
 		})
 		t.Run("Check: "+test.about, func(t *testing.T) {
 			tt := &testingT{}
-			ok := qt.Check(tt, test.checker, test.comment...)
+			ok := qt.Check(tt, test.checker, test.comments...)
 			checkResult(t, ok, tt.errorString(), test.expectedFailure)
 			if tt.fatalString() != "" {
 				t.Fatalf("no fatal messages expected, but got %q", tt.fatalString())

@@ -50,6 +50,7 @@ func newMapIter[K comparable, V any](m map[K]V) containerIter[V] {
 	}
 }
 
+// mapValueIter implements containerIter for maps.
 type mapValueIter[T any] struct {
 	iter *reflect.MapIter
 	v    T

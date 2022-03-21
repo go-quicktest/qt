@@ -9,7 +9,7 @@ For a complete API reference, see the [package documentation](https://pkg.go.dev
 
 Quicktest helpers can be easily integrated inside regular Go tests, for
 instance:
-
+```go
     import "github.com/go-quicktest/qt"
 
     func TestFoo(t *testing.T) {
@@ -24,7 +24,7 @@ instance:
             qt.Assert(t, got, qt.IsNil(got), qt.Commentf("value: %v", somepackage.Value))
         })
     }
-
+```
 
 ### Assertions
 

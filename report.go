@@ -22,13 +22,10 @@ type reportParams struct {
 	paramNames []string
 	// args holds all the arguments passed to the checker.
 	args []Arg
-	// comment optionally holds the comment passed when performing the check.
-	comment Comment
+	// comments optionally holds comments passed when performing the check.
+	comments []Comment
 	// notes holds notes added while doing the check.
 	notes []note
-	// format holds the format function that must be used when outputting
-	// values.
-	format formatFunc
 }
 
 // Unquoted indicates that the string must not be pretty printed in the failure
@@ -57,7 +54,7 @@ func writeError(w io.Writer, err error, p reportParams) {
 		if u, ok := value.(Unquoted); ok {
 			v = string(u)
 		} else {
-			v = p.format(value)
+			v = Format(value)
 		}
 		if k := values[v]; k != "" {
 			fmt.Fprint(w, prefixf(prefix, "<same as %q>", k))
@@ -72,9 +69,11 @@ func writeError(w io.Writer, err error, p reportParams) {
 		printPair("error", Unquoted(err.Error()))
 	}
 
-	// Write the comment if provided.
-	if comment := p.comment.String(); comment != "" {
-		printPair("comment", Unquoted(comment))
+	// Write comments if provided.
+	for _, c := range p.comments {
+		if comment := c.String(); comment != "" {
+			printPair("comment", Unquoted(comment))
+		}
 	}
 
 	// Write notes if present.

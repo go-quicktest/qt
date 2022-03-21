@@ -16,17 +16,23 @@ import (
 	"github.com/go-quicktest/qt"
 )
 
+// errTarget is an error implemented as a pointer.
 type errTarget struct {
 	msg string
 }
 
 func (e *errTarget) Error() string {
-	return e.msg
+	return "ptr: " + e.msg
 }
 
-var (
-	targetErr = &errTarget{msg: "target"}
-)
+// errTargetNonPtr is an error implemented as a non-pointer.
+type errTargetNonPtr struct {
+	msg string
+}
+
+func (e errTargetNonPtr) Error() string {
+	return "non ptr: " + e.msg
+}
 
 // Fooer is an interface for testing.
 type Fooer interface {
@@ -37,27 +43,6 @@ type cmpType struct {
 	Strings []any
 	Ints    []int
 }
-
-var (
-	goTime = time.Date(2012, 3, 28, 0, 0, 0, 0, time.UTC)
-	chInt  = func() chan int {
-		ch := make(chan int, 4)
-		ch <- 42
-		ch <- 47
-		return ch
-	}()
-	sameInts = cmpopts.SortSlices(func(x, y int) bool {
-		return x < y
-	})
-	cmpEqualsGot = cmpType{
-		Strings: []any{"who", "dalek"},
-		Ints:    []int{42, 47},
-	}
-	cmpEqualsWant = cmpType{
-		Strings: []any{"who", "dalek"},
-		Ints:    []int{42},
-	}
-)
 
 type InnerJSON struct {
 	First  string
@@ -71,6 +56,31 @@ type OuterJSON struct {
 }
 
 type boolean bool
+
+var (
+	targetErr       = &errTarget{msg: "target"}
+	targetNonPtrErr = &errTargetNonPtr{msg: "target"}
+
+	goTime = time.Date(2012, 3, 28, 0, 0, 0, 0, time.UTC)
+	chInt  = func() chan int {
+		ch := make(chan int, 4)
+		ch <- 42
+		ch <- 47
+		return ch
+	}()
+	sameInts = cmpopts.SortSlices(func(x, y int) bool {
+		return x < y
+	})
+
+	cmpEqualsGot = cmpType{
+		Strings: []any{"who", "dalek"},
+		Ints:    []int{42, 47},
+	}
+	cmpEqualsWant = cmpType{
+		Strings: []any{"who", "dalek"},
+		Ints:    []int{42},
+	}
+)
 
 var checkerTests = []struct {
 	about                 string
@@ -810,16 +820,16 @@ regexp:
 	checker: qt.IsNil(any(nil)),
 	expectedNegateFailure: `
 error:
-  unexpected success
+  got <nil> but want non-nil
 got:
   nil
 `,
 }, {
-	about:   "IsNil: nil struct",
+	about:   "IsNil: nil pointer to struct",
 	checker: qt.IsNil((*struct{})(nil)),
 	expectedNegateFailure: `
 error:
-  unexpected success
+  got nil ptr but want non-nil
 got:
   (*struct {})(nil)
 `,
@@ -828,7 +838,7 @@ got:
 	checker: qt.IsNil((func())(nil)),
 	expectedNegateFailure: `
 error:
-  unexpected success
+  got nil func but want non-nil
 got:
   func() {...}
 `,
@@ -837,7 +847,7 @@ got:
 	checker: qt.IsNil((map[string]string)(nil)),
 	expectedNegateFailure: `
 error:
-  unexpected success
+  got nil map but want non-nil
 got:
   map[string]string{}
 `,
@@ -846,7 +856,7 @@ got:
 	checker: qt.IsNil(([]int)(nil)),
 	expectedNegateFailure: `
 error:
-  unexpected success
+  got nil slice but want non-nil
 got:
   []int(nil)
 `,
@@ -894,7 +904,7 @@ got:
 	checker: qt.IsNotNil[any](nil),
 	expectedCheckFailure: `
 error:
-  unexpected success
+  got <nil> but want non-nil
 got:
   nil
 `,
@@ -1551,7 +1561,7 @@ want:
 error:
   unexpected success
 got:
-  e"target"
+  e"ptr: target"
 as type:
   *qt_test.errTarget
 `,
@@ -1562,7 +1572,7 @@ as type:
 error:
   unexpected success
 got:
-  e"wrapped: target"
+  e"wrapped: ptr: target"
 as type:
   *qt_test.errTarget
 `,
@@ -1589,6 +1599,17 @@ as type:
   *qt_test.errTarget
 `,
 }, {
+	about:   "ErrorAs: fails if mismatch with a non-pointer error implementation",
+	checker: qt.ErrorAs(errors.New("other error"), new(errTargetNonPtr)),
+	expectedCheckFailure: `
+error:
+  wanted type is not found in error chain
+got:
+  e"other error"
+as type:
+  qt_test.errTargetNonPtr
+`,
+}, {
 	about:   "ErrorAs: bad check if invalid as",
 	checker: qt.ErrorAs(targetErr, &struct{}{}),
 	expectedCheckFailure: `
@@ -1606,7 +1627,7 @@ error:
 error:
   unexpected success
 got:
-  e"target"
+  e"ptr: target"
 want:
   <same as "got">
 `,
@@ -1617,9 +1638,9 @@ want:
 error:
   unexpected success
 got:
-  e"wrapped: target"
+  e"wrapped: ptr: target"
 want:
-  e"target"
+  e"ptr: target"
 `,
 }, {
 	about:   "ErrorIs: fails if nil error",
@@ -1630,7 +1651,7 @@ error:
 got:
   nil
 want:
-  e"target"
+  e"ptr: target"
 `,
 }, {
 	about:   "ErrorIs: fails if mismatch",
@@ -1641,7 +1662,49 @@ error:
 got:
   e"other error"
 want:
-  e"target"
+  e"ptr: target"
+`,
+}, {
+	about:   "ErrorIs: nil to nil match",
+	checker: qt.ErrorIs(nil, nil),
+	expectedNegateFailure: `
+error:
+  unexpected success
+got:
+  nil
+want:
+  <same as "got">
+`,
+}, {
+	about:   "ErrorIs: non-nil to nil mismatch",
+	checker: qt.ErrorIs(targetErr, nil),
+	expectedCheckFailure: `
+error:
+  wanted error is not found in error chain
+got:
+  e"ptr: target"
+want:
+  nil
+`,
+}, {
+	about:   "Not: failure",
+	checker: qt.Not(qt.Equals(42, 42)),
+	expectedCheckFailure: `
+error:
+  unexpected success
+got:
+  int(42)
+want:
+  <same as "got">
+`,
+}, {
+	about:   "Not: IsNil failure",
+	checker: qt.Not(qt.IsNil[*int](nil)),
+	expectedCheckFailure: `
+error:
+  got nil ptr but want non-nil
+got:
+  (*int)(nil)
 `,
 }}
 
