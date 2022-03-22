@@ -59,7 +59,6 @@ type boolean bool
 
 var (
 	targetErr       = &errTarget{msg: "target"}
-	targetErr2      = &errTarget{msg: "target"}
 	targetNonPtrErr = &errTargetNonPtr{msg: "target"}
 
 	goTime = time.Date(2012, 3, 28, 0, 0, 0, 0, time.UTC)
@@ -81,8 +80,6 @@ var (
 		Strings: []any{"who", "dalek"},
 		Ints:    []int{42},
 	}
-
-	intPtr1, intPtr2 = new(int), new(int)
 )
 
 var checkerTests = []struct {
@@ -255,37 +252,29 @@ want type:
 got:
   e"bad wolf"
 want:
-  <same as "got">
+  <same as "got" but different pointer value>
 `,
 }, {
 	about:   "Equals: different pointer errors with the same message",
-	checker: qt.Equals(targetErr, targetErr2),
+	checker: qt.Equals(targetErr, &errTarget{msg: "target"}),
 	expectedCheckFailure: `
 error:
-  pointers are not equal
+  values are not equal
 got:
-  ` + fmt.Sprintf("%p", targetErr) + `
-want:
-  ` + fmt.Sprintf("%p", targetErr2) + `
-formatted got:
   e"ptr: target"
-formatted want:
-  <same as "formatted got">
+want:
+  <same as "got" but different pointer value>
 `,
 }, {
 	about:   "Equals: different pointers with the same formatted output",
-	checker: qt.Equals(intPtr1, intPtr2),
+	checker: qt.Equals(new(int), new(int)),
 	expectedCheckFailure: `
 error:
-  pointers are not equal
+  values are not equal
 got:
-  ` + fmt.Sprintf("%p", intPtr1) + `
-want:
-  ` + fmt.Sprintf("%p", intPtr2) + `
-formatted got:
   &int(0)
-formatted want:
-  <same as "formatted got">
+want:
+  <same as "got" but different pointer value>
 `,
 }, {
 	about:   "Equals: nil struct",

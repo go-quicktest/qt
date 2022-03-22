@@ -85,8 +85,8 @@ func (c *equalsChecker[T]) Check(note func(key string, value any)) (err error) {
 		if gotType != wantType {
 			note("got type", Unquoted(gotType.String()))
 			note("want type", Unquoted(wantType.String()))
-			return errors.New("values are not equal")
 		}
+		return errors.New("values are not equal")
 	}
 
 	// Show line diff when comparing different multi-line strings.
@@ -99,17 +99,6 @@ func (c *equalsChecker[T]) Check(note func(key string, value any)) (err error) {
 			diff := cmp.Diff(strings.SplitAfter(c.got, "\n"), strings.SplitAfter(c.want, "\n"))
 			note("line diff (-got +want)", Unquoted(diff))
 		}
-	}
-
-	if typeOf[T]().Kind() == reflect.Pointer && Format(c.got) == Format(c.want) {
-		// Explicitly show pointer values, as otherwise the failure output would
-		// be confusing, at least with the default formatter.
-		note("error", Unquoted("pointers are not equal"))
-		note("got", Unquoted(fmt.Sprintf("%p", any(c.got))))
-		note("want", Unquoted(fmt.Sprintf("%p", any(c.want))))
-		note("formatted got", c.got)
-		note("formatted want", c.want)
-		return ErrSilent
 	}
 
 	return errors.New("values are not equal")

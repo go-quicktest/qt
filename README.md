@@ -21,7 +21,7 @@ instance:
         t.Run("nil", func(t *testing.T) {
             c := qt.New(t)
             got := somepackage.MaybeNil()
-            qt.Assert(t, got, qt.IsNil(got), qt.Commentf("value: %v", somepackage.Value))
+            qt.Assert(t, qt.IsNil(got), qt.Commentf("value: %v", somepackage.Value))
         })
     }
 ```
