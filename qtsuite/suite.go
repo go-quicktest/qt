@@ -16,7 +16,7 @@ an HTTP server before running each test, and tears it down afterwards:
 			fmt.Fprintf(w, "%s %s", req.Method, req.URL.Path)
 		}
 		srv := httptest.NewServer(http.HandlerFunc(hnd))
-		c.Cleanup(srv.Close)
+		t.Cleanup(srv.Close)
 		s.url = srv.URL
 	}
 
@@ -33,7 +33,7 @@ an HTTP server before running each test, and tears it down afterwards:
 	func (s *suite) TestHead(t *testing.T) {
 		t.Parallel()
 		resp, err := http.Head(s.url + "/path")
-		qt.Assert(t, err, qt.IsNil)
+		qt.Assert(t, qt.IsNil(err))
 		defer resp.Body.Close()
 		b, err := ioutil.ReadAll(resp.Body)
 		qt.Assert(t, qt.IsNil(err))
@@ -44,7 +44,7 @@ an HTTP server before running each test, and tears it down afterwards:
 The above code could be invoked from a test function like this:
 
 	func TestHTTPMethods(t *testing.T) {
-		qtsuite.Run(qt.New(t), &suite{})
+		qtsuite.Run(t, &suite{})
 	}
 */
 package qtsuite
