@@ -25,7 +25,7 @@ type Checker interface {
 	//
 	// If Check returns ErrSilent, neither the checker arguments nor
 	// the error are printed; values with note are still printed.
-	Check(note func(key string, value interface{})) error
+	Check(note func(key string, value any)) error
 
 	// Args returns a slice of all the arguments passed
 	// to the checker. The first argument should always be
@@ -66,9 +66,11 @@ func (c *equalsChecker[T]) Check(note func(key string, value any)) (err error) {
 			err = fmt.Errorf("%s", r)
 		}
 	}()
+
 	if any(c.got) == any(c.want) {
 		return nil
 	}
+
 	// Customize error message for non-nil errors.
 	if typeOf[T]() == typeOf[error]() {
 		if any(c.want) == nil {
@@ -86,6 +88,7 @@ func (c *equalsChecker[T]) Check(note func(key string, value any)) (err error) {
 		}
 		return errors.New("values are not equal")
 	}
+
 	// Show line diff when comparing different multi-line strings.
 	if c, ok := any(c).(*equalsChecker[string]); ok {
 		isMultiLine := func(s string) bool {
@@ -97,6 +100,7 @@ func (c *equalsChecker[T]) Check(note func(key string, value any)) (err error) {
 			note("line diff (-got +want)", Unquoted(diff))
 		}
 	}
+
 	return errors.New("values are not equal")
 }
 

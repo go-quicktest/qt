@@ -252,7 +252,29 @@ want type:
 got:
   e"bad wolf"
 want:
-  <same as "got">
+  <same as "got" but different pointer value>
+`,
+}, {
+	about:   "Equals: different pointer errors with the same message",
+	checker: qt.Equals(targetErr, &errTarget{msg: "target"}),
+	expectedCheckFailure: `
+error:
+  values are not equal
+got:
+  e"ptr: target"
+want:
+  <same as "got" but different pointer value>
+`,
+}, {
+	about:   "Equals: different pointers with the same formatted output",
+	checker: qt.Equals(new(int), new(int)),
+	expectedCheckFailure: `
+error:
+  values are not equal
+got:
+  &int(0)
+want:
+  <same as "got" but different pointer value>
 `,
 }, {
 	about:   "Equals: nil struct",
@@ -1266,7 +1288,7 @@ want:
 `,
 }, {
 	about: "Contains with map and interface value",
-	checker: qt.MapContains(map[string]interface{}{
+	checker: qt.MapContains(map[string]any{
 		"a": "d",
 		"b": "a",
 	}, "d"),
