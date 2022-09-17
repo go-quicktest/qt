@@ -11,12 +11,13 @@ require (
 )
 
 retract (
-	v1.14.2 // Published accidentally.
-	v1.14.1 // Published accidentally.
-	v1.9.0 // Published accidentally.
-	v1.7.0 // Published accidentally.
+	v0.0.3 // First retract attempt, that didn't work.
 	v1.3.0 // Published accidentally.
-	v0.0.3 // Contains retractions only.
+	v1.7.0 // Published accidentally.
+	v1.9.0 // Published accidentally.
+	v1.14.1 // Published accidentally.
+	v1.14.2 // Published accidentally.
+	v1.14.3 // Contains retractions only.
 )
 
 go 1.18
