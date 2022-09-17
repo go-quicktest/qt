@@ -19,7 +19,6 @@ instance:
             qt.Assert(t, qt.ErrorMatches(err, "bad wolf"))
         })
         t.Run("nil", func(t *testing.T) {
-            c := qt.New(t)
             got := somepackage.MaybeNil()
             qt.Assert(t, qt.IsNil(got), qt.Commentf("value: %v", somepackage.Value))
         })

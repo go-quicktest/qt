@@ -279,7 +279,7 @@ func checkResult(t *testing.T, ok bool, got, want string) {
 	assertBool(t, ok, true)
 }
 
-// testingT can be passed to qt.New for testing purposes.
+// testingT implements testing.TB for testing purposes.
 type testingT struct {
 	testing.TB
 
