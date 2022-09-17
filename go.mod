@@ -11,4 +11,13 @@ require (
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
 )
 
+retract (
+	v1.14.2 // Published accidentally.
+	v1.14.1 // Published accidentally.
+	v1.9.0 // Published accidentally.
+	v1.7.0 // Published accidentally.
+	v1.3.0 // Published accidentally.
+	v0.0.3 // Contains retractions only.
+)
+
 go 1.18
