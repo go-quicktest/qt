@@ -58,8 +58,7 @@ type OuterJSON struct {
 type boolean bool
 
 var (
-	targetErr       = &errTarget{msg: "target"}
-	targetNonPtrErr = &errTargetNonPtr{msg: "target"}
+	targetErr = &errTarget{msg: "target"}
 
 	goTime = time.Date(2012, 3, 28, 0, 0, 0, 0, time.UTC)
 	chInt  = func() chan int {
