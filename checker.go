@@ -162,65 +162,66 @@ func ContentEquals[T any](got, want T) Checker {
 
 // Matches returns a Checker checking that the provided string matches the
 // provided regular expression pattern.
-func Matches(got, want string) Checker {
-	return &matchesChecker{
+func Matches[StringOrRegexp string | *regexp.Regexp](got string, want StringOrRegexp) Checker {
+	return &matchesChecker[StringOrRegexp]{
 		got:  got,
 		want: want,
 	}
 }
 
-type matchesChecker struct {
-	got, want string
+type matchesChecker[StringOrRegexp string | *regexp.Regexp] struct {
+	got  string
+	want StringOrRegexp
 }
 
-func (c *matchesChecker) Check(note func(key string, value any)) error {
+func (c *matchesChecker[StringOrRegexp]) Check(note func(key string, value any)) error {
 	return match(c.got, c.want, "value does not match regexp", note)
 }
 
-func (c *matchesChecker) Args() []Arg {
+func (c *matchesChecker[StringOrRegexp]) Args() []Arg {
 	return []Arg{{Name: "got value", Value: c.got}, {Name: "regexp", Value: c.want}}
 }
 
 // ErrorMatches returns a Checker checking that the provided value is an error
 // whose message matches the provided regular expression pattern.
-func ErrorMatches(got error, want string) Checker {
-	return &errorMatchesChecker{
+func ErrorMatches[StringOrRegexp string | *regexp.Regexp](got error, want StringOrRegexp) Checker {
+	return &errorMatchesChecker[StringOrRegexp]{
 		got:  got,
 		want: want,
 	}
 }
 
-type errorMatchesChecker struct {
+type errorMatchesChecker[StringOrRegexp string | *regexp.Regexp] struct {
 	got  error
-	want string
+	want StringOrRegexp
 }
 
-func (c *errorMatchesChecker) Check(note func(key string, value any)) error {
+func (c *errorMatchesChecker[StringOrRegexp]) Check(note func(key string, value any)) error {
 	if c.got == nil {
 		return errors.New("got nil error but want non-nil")
 	}
 	return match(c.got.Error(), c.want, "error does not match regexp", note)
 }
 
-func (c *errorMatchesChecker) Args() []Arg {
+func (c *errorMatchesChecker[StringOrRegexp]) Args() []Arg {
 	return []Arg{{Name: "got error", Value: c.got}, {Name: "regexp", Value: c.want}}
 }
 
 // PanicMatches returns a Checker checking that the provided function panics
 // with a message matching the provided regular expression pattern.
-func PanicMatches(f func(), want string) Checker {
-	return &panicMatchesChecker{
+func PanicMatches[StringOrRegexp string | *regexp.Regexp](f func(), want StringOrRegexp) Checker {
+	return &panicMatchesChecker[StringOrRegexp]{
 		got:  f,
 		want: want,
 	}
 }
 
-type panicMatchesChecker struct {
+type panicMatchesChecker[StringOrRegexp string | *regexp.Regexp] struct {
 	got  func()
-	want string
+	want StringOrRegexp
 }
 
-func (c *panicMatchesChecker) Check(note func(key string, value any)) (err error) {
+func (c *panicMatchesChecker[StringOrRegexp]) Check(note func(key string, value any)) (err error) {
 	defer func() {
 		r := recover()
 		if r == nil {
@@ -235,7 +236,7 @@ func (c *panicMatchesChecker) Check(note func(key string, value any)) (err error
 	return nil
 }
 
-func (c *panicMatchesChecker) Args() []Arg {
+func (c *panicMatchesChecker[StringOrRegexp]) Args() []Arg {
 	return []Arg{{Name: "function", Value: c.got}, {Name: "regexp", Value: c.want}}
 }
 
@@ -780,14 +781,21 @@ func (v *verbosity) setVerbose(verbose bool) {
 }
 
 // match checks that the given error message matches the given pattern.
-func match(got string, regex string, msg string, note func(key string, value any)) error {
-	matches, err := regexp.MatchString("^("+regex+")$", got)
-	if err != nil {
-		note("regexp", regex)
-		return BadCheckf("cannot compile regexp: %s", err)
-	}
-	if matches {
-		return nil
+func match[StringOrRegexp string | *regexp.Regexp](got string, regex StringOrRegexp, msg string, note func(key string, value any)) error {
+	switch r := any(regex).(type) {
+	case string:
+		matches, err := regexp.MatchString("^("+r+")$", got)
+		if err != nil {
+			note("regexp", regex)
+			return BadCheckf("cannot compile regexp: %s", err)
+		}
+		if matches {
+			return nil
+		}
+	case *regexp.Regexp:
+		if r.MatchString(got) {
+			return nil
+		}
 	}
 	return errors.New(msg)
 }

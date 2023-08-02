@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -656,6 +657,39 @@ regexp:
   "("
 `,
 }, {
+	about:   "Matches: match with pre-compiled regexp",
+	checker: qt.Matches("resistance is futile", regexp.MustCompile("resistance is (futile|useful)")),
+	expectedNegateFailure: `
+error:
+  unexpected success
+got value:
+  "resistance is futile"
+regexp:
+  s"resistance is (futile|useful)"
+`,
+}, {
+	about:   "Matches: mismatch with pre-compiled regexp",
+	checker: qt.Matches("resistance is cool", regexp.MustCompile("resistance is (futile|useful)")),
+	expectedCheckFailure: `
+error:
+  value does not match regexp
+got value:
+  "resistance is cool"
+regexp:
+  s"resistance is (futile|useful)"
+`,
+}, {
+	about:   "Matches: match with pre-compiled multi-line regexp",
+	checker: qt.Matches("line 1\nline 2", regexp.MustCompile(`line \d\nline \d`)),
+	expectedNegateFailure: `
+error:
+  unexpected success
+got value:
+  "line 1\nline 2"
+regexp:
+  s"line \\d\\nline \\d"
+`,
+}, {
 	about:   "ErrorMatches: perfect match",
 	checker: qt.ErrorMatches(errBadWolf, "bad wolf"),
 	expectedNegateFailure: `
@@ -740,6 +774,43 @@ got error:
   nil
 regexp:
   "some pattern"
+`,
+}, {
+	about:   "ErrorMatches: match with pre-compiled regexp",
+	checker: qt.ErrorMatches(errBadWolf, regexp.MustCompile("bad (wolf|dog)")),
+	expectedNegateFailure: `
+error:
+  unexpected success
+got error:
+  bad wolf
+    file:line
+regexp:
+  s"bad (wolf|dog)"
+`,
+}, {
+	about:   "ErrorMatches: match with pre-compiled multi-line regexp",
+	checker: qt.ErrorMatches(errBadWolfMultiLine, regexp.MustCompile(`bad (wolf|dog)\nfaulty (logic|statement)`)),
+	expectedNegateFailure: `
+error:
+  unexpected success
+got error:
+  bad wolf
+  faulty logic
+    file:line
+regexp:
+  s"bad (wolf|dog)\\nfaulty (logic|statement)"
+`,
+}, {
+	about:   "ErrorMatches: mismatch with pre-compiled regexp",
+	checker: qt.ErrorMatches(errBadWolf, regexp.MustCompile("good (wolf|dog)")),
+	expectedCheckFailure: `
+error:
+  error does not match regexp
+got error:
+  bad wolf
+    file:line
+regexp:
+  s"good (wolf|dog)"
 `,
 }, {
 	about:   "PanicMatches: perfect match",
@@ -835,6 +906,45 @@ function:
   func() {...}
 regexp:
   ".*"
+`,
+}, {
+	about:   "PanicMatches: match with pre-compiled regexp",
+	checker: qt.PanicMatches(func() { panic("error: bad wolf") }, regexp.MustCompile("error: bad (wolf|dog)")),
+	expectedNegateFailure: `
+error:
+  unexpected success
+panic value:
+  "error: bad wolf"
+function:
+  func() {...}
+regexp:
+  s"error: bad (wolf|dog)"
+`,
+}, {
+	about:   "PanicMatches: match with pre-compiled multi-line regexp",
+	checker: qt.PanicMatches(func() { panic("error: bad wolf\nfaulty logic") }, regexp.MustCompile(`error: bad (wolf|dog)\nfaulty (logic|statement)`)),
+	expectedNegateFailure: `
+error:
+  unexpected success
+panic value:
+  "error: bad wolf\nfaulty logic"
+function:
+  func() {...}
+regexp:
+  s"error: bad (wolf|dog)\\nfaulty (logic|statement)"
+`,
+}, {
+	about:   "PanicMatches: mismatch with pre-compiled regexp",
+	checker: qt.PanicMatches(func() { panic("error: bad wolf") }, regexp.MustCompile("good (wolf|dog)")),
+	expectedCheckFailure: `
+error:
+  panic value does not match regexp
+panic value:
+  "error: bad wolf"
+function:
+  func() {...}
+regexp:
+  s"good (wolf|dog)"
 `,
 }, {
 	about:   "IsNil: nil",
@@ -1315,7 +1425,7 @@ want:
 `,
 }, {
 	about:   "All slice match",
-	checker: qt.SliceAll([]string{"red", "blue", "green"}, qt.F2(qt.Matches, ".*e.*")),
+	checker: qt.SliceAll([]string{"red", "blue", "green"}, qt.F2(qt.Matches[string], ".*e.*")),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1328,7 +1438,7 @@ regexp:
 	about: "All nested match",
 	// TODO this is a bit awkward. Is there something we could do to improve it?
 	checker: qt.SliceAll([][]string{{"hello", "goodbye"}, {"red", "blue"}, {}}, func(elem []string) qt.Checker {
-		return qt.SliceAll(elem, qt.F2(qt.Matches, ".*e.*"))
+		return qt.SliceAll(elem, qt.F2(qt.Matches[string], ".*e.*"))
 	}),
 	expectedNegateFailure: `
 error:
@@ -1345,7 +1455,7 @@ regexp:
 }, {
 	about: "All nested mismatch",
 	checker: qt.SliceAll([][]string{{"hello", "goodbye"}, {"black", "blue"}, {}}, func(elem []string) qt.Checker {
-		return qt.SliceAll(elem, qt.F2(qt.Matches, ".*e.*"))
+		return qt.SliceAll(elem, qt.F2(qt.Matches[string], ".*e.*"))
 	}),
 	expectedCheckFailure: `
 error:
@@ -1359,7 +1469,7 @@ first mismatched element:
 `,
 }, {
 	about:   "All slice mismatch",
-	checker: qt.SliceAll([]string{"red", "black"}, qt.F2(qt.Matches, ".*e.*")),
+	checker: qt.SliceAll([]string{"red", "black"}, qt.F2(qt.Matches[string], ".*e.*")),
 	expectedCheckFailure: `
 error:
   mismatch at index 1
@@ -1381,7 +1491,7 @@ diff (-got +want):
 `,
 }, {
 	about:   "All mismatch with map",
-	checker: qt.MapAll(map[string]string{"a": "red", "b": "black"}, qt.F2(qt.Matches, ".*e.*")),
+	checker: qt.MapAll(map[string]string{"a": "red", "b": "black"}, qt.F2(qt.Matches[string], ".*e.*")),
 	expectedCheckFailure: `
 error:
   mismatch at key "b"
