@@ -343,16 +343,6 @@ error:
   values are not deep equal
 diff (-got +want):
 %s
-`, diff(cmpEqualsGot, cmpEqualsWant)),
-}, {
-	about:   "DeepEquals: different values: verbose",
-	checker: qt.DeepEquals(cmpEqualsGot, cmpEqualsWant),
-	verbose: true,
-	expectedCheckFailure: fmt.Sprintf(`
-error:
-  values are not deep equal
-diff (-got +want):
-%s
 got:
   qt_test.cmpType{
       Strings: {
@@ -371,6 +361,119 @@ want:
   }
 `, diff(cmpEqualsGot, cmpEqualsWant)),
 }, {
+	about:   "DeepEquals: different values: long output",
+	checker: qt.DeepEquals([]any{cmpEqualsWant, cmpEqualsWant}, []any{cmpEqualsWant, cmpEqualsWant, 42}),
+	expectedCheckFailure: fmt.Sprintf(`
+error:
+  values are not deep equal
+diff (-got +want):
+%s
+got:
+  <suppressed due to length (15 lines), use -v for full output>
+want:
+  <suppressed due to length (16 lines), use -v for full output>
+`, diff([]any{cmpEqualsWant, cmpEqualsWant}, []any{cmpEqualsWant, cmpEqualsWant, 42})),
+}, {
+	about:   "DeepEquals: different values: long output and verbose",
+	checker: qt.DeepEquals([]any{cmpEqualsWant, cmpEqualsWant}, []any{cmpEqualsWant, cmpEqualsWant, 42}),
+	verbose: true,
+	expectedCheckFailure: fmt.Sprintf(`
+error:
+  values are not deep equal
+diff (-got +want):
+%s
+got:
+  []interface {}{
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+  }
+want:
+  []interface {}{
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+      int(42),
+  }
+`, diff([]any{cmpEqualsWant, cmpEqualsWant}, []any{cmpEqualsWant, cmpEqualsWant, 42})),
+}, {
+	about:   "CmpEquals: different values, long output",
+	checker: qt.CmpEquals([]any{cmpEqualsWant, "extra line 1", "extra line 2", "extra line 3"}, []any{cmpEqualsWant, "extra line 1"}),
+	expectedCheckFailure: fmt.Sprintf(`
+error:
+  values are not deep equal
+diff (-got +want):
+%s
+got:
+  <suppressed due to length (11 lines), use -v for full output>
+want:
+  []interface {}{
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+      "extra line 1",
+  }
+`, diff([]any{cmpEqualsWant, "extra line 1", "extra line 2", "extra line 3"}, []any{cmpEqualsWant, "extra line 1"})),
+}, {
+	about:   "CmpEquals: different values: long output and verbose",
+	checker: qt.CmpEquals([]any{cmpEqualsWant, "extra line 1", "extra line 2"}, []any{cmpEqualsWant, "extra line 1"}),
+	verbose: true,
+	expectedCheckFailure: fmt.Sprintf(`
+error:
+  values are not deep equal
+diff (-got +want):
+%s
+got:
+  []interface {}{
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+      "extra line 1",
+      "extra line 2",
+  }
+want:
+  []interface {}{
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+      "extra line 1",
+  }
+`, diff([]any{cmpEqualsWant, "extra line 1", "extra line 2"}, []any{cmpEqualsWant, "extra line 1"})),
+}, {
 	about:   "CmpEquals: same values with options",
 	checker: qt.CmpEquals([]int{1, 2, 3}, []int{3, 2, 1}, sameInts),
 	expectedNegateFailure: `
@@ -384,16 +487,6 @@ want:
 }, {
 	about:   "CmpEquals: different values with options",
 	checker: qt.CmpEquals([]int{1, 2, 4}, []int{3, 2, 1}, sameInts),
-	expectedCheckFailure: fmt.Sprintf(`
-error:
-  values are not deep equal
-diff (-got +want):
-%s
-`, diff([]int{1, 2, 4}, []int{3, 2, 1}, sameInts)),
-}, {
-	about:   "CmpEquals: different values with options: verbose",
-	checker: qt.CmpEquals([]int{1, 2, 4}, []int{3, 2, 1}, sameInts),
-	verbose: true,
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
@@ -587,6 +680,13 @@ error:
   values are not deep equal
 diff (-got +want):
 %s
+got:
+  []string{"bad", "wolf"}
+want:
+  []interface {}{
+      "bad",
+      "wolf",
+  }
 `, diff([]string{"bad", "wolf"}, []any{"bad", "wolf"})),
 }, {
 	about:   "Matches: perfect match",
@@ -1483,14 +1583,18 @@ first mismatched element:
 }, {
 	about:   "All slice mismatch with DeepEqual",
 	checker: qt.SliceAll([][]string{{"a", "b"}, {"a", "c"}}, qt.F2(qt.DeepEquals[[]string], []string{"a", "b"})),
-	expectedCheckFailure: `
+	expectedCheckFailure: fmt.Sprintf(`
 error:
   mismatch at index 1
 error:
   values are not deep equal
 diff (-got +want):
-` + diff([]string{"a", "c"}, []string{"a", "b"}) + `
-`,
+%s
+got:
+  []string{"a", "c"}
+want:
+  []string{"a", "b"}
+`, diff([]string{"a", "c"}, []string{"a", "b"})),
 }, {
 	about:   "All mismatch with map",
 	checker: qt.MapAll(map[string]string{"a": "red", "b": "black"}, qt.F2(qt.Matches[string], ".*e.*")),
@@ -1609,6 +1713,14 @@ error:
   values are not deep equal
 diff (-got +want):
 %s
+got:
+  map[string]interface {}{
+      "NotThere": float64(1),
+  }
+want:
+  map[string]interface {}{
+      "First": float64(2),
+  }
 `, diff(map[string]any{"NotThere": 1.0}, map[string]any{"First": 2.0})),
 }, {
 	about:   "JSONEquals cannot unmarshal obtained value",
@@ -1842,16 +1954,21 @@ got:
 }}
 
 func TestCheckers(t *testing.T) {
+	original := qt.TestingVerbose
+	defer func() {
+		qt.TestingVerbose = original
+	}()
 	for _, test := range checkerTests {
+		*qt.TestingVerbose = func() bool {
+			return test.verbose
+		}
 		t.Run(test.about, func(t *testing.T) {
 			tt := &testingT{}
-			qt.SetVerbosity(test.checker, test.verbose)
 			ok := qt.Check(tt, test.checker)
 			checkResult(t, ok, tt.errorString(), test.expectedCheckFailure)
 		})
 		t.Run("Not "+test.about, func(t *testing.T) {
 			tt := &testingT{}
-			qt.SetVerbosity(test.checker, test.verbose)
 			ok := qt.Check(tt, qt.Not(test.checker))
 			checkResult(t, ok, tt.errorString(), test.expectedNegateFailure)
 		})

@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
-	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -117,16 +116,14 @@ func DeepEquals[T any](got, want T) Checker {
 // set of compare options. See example for details.
 func CmpEquals[T any](got, want T, opts ...cmp.Option) Checker {
 	return &cmpEqualsChecker[T]{
-		argPair:   argPairOf(got, want),
-		opts:      opts,
-		verbosity: testing.Verbose,
+		argPair: argPairOf(got, want),
+		opts:    opts,
 	}
 }
 
 type cmpEqualsChecker[T any] struct {
 	argPair[T, T]
 	opts []cmp.Option
-	verbosity
 }
 
 func (c *cmpEqualsChecker[T]) Check(note func(key string, value any)) (err error) {
@@ -140,12 +137,10 @@ func (c *cmpEqualsChecker[T]) Check(note func(key string, value any)) (err error
 	}()
 	if diff := cmp.Diff(c.got, c.want, c.opts...); diff != "" {
 		// Only output values when the verbose flag is set.
-		if c.verbosity() {
-			note("diff (-got +want)", Unquoted(diff))
-			return errors.New("values are not deep equal")
-		}
 		note("error", Unquoted("values are not deep equal"))
 		note("diff (-got +want)", Unquoted(diff))
+		note("got", SuppressedIfLong{c.got})
+		note("want", SuppressedIfLong{c.want})
 		return ErrSilent
 	}
 	return nil
@@ -487,7 +482,6 @@ func SliceAny[T any](container []T, f func(elem T) Checker) Checker {
 		},
 		container:   container,
 		elemChecker: f,
-		verbosity:   testing.Verbose,
 	}
 }
 
@@ -505,7 +499,6 @@ func MapAny[K comparable, V any](container map[K]V, f func(elem V) Checker) Chec
 		},
 		container:   container,
 		elemChecker: f,
-		verbosity:   testing.Verbose,
 	}
 }
 
@@ -513,7 +506,6 @@ type anyChecker[T any] struct {
 	newIter     func() containerIter[T]
 	container   any
 	elemChecker func(T) Checker
-	verbosity
 }
 
 func (c *anyChecker[T]) Check(note func(key string, value any)) error {
@@ -524,7 +516,6 @@ func (c *anyChecker[T]) Check(note func(key string, value any)) error {
 		// one element in the container, the answer is probably yes,
 		// but let's leave it for now.
 		checker := c.elemChecker(iter.value())
-		setVerbosity(checker, c.verbosity())
 		err := checker.Check(
 			func(key string, value any) {},
 		)
@@ -564,7 +555,6 @@ func SliceAll[T any](container []T, f func(elem T) Checker) Checker {
 		},
 		container:   container,
 		elemChecker: f,
-		verbosity:   testing.Verbose,
 	}
 }
 
@@ -577,7 +567,6 @@ func MapAll[K comparable, V any](container map[K]V, f func(elem V) Checker) Chec
 		},
 		container:   container,
 		elemChecker: f,
-		verbosity:   testing.Verbose,
 	}
 }
 
@@ -585,7 +574,6 @@ type allChecker[T any] struct {
 	newIter     func() containerIter[T]
 	container   any
 	elemChecker func(T) Checker
-	verbosity
 }
 
 func (c *allChecker[T]) Check(notef func(key string, value any)) error {
@@ -595,7 +583,6 @@ func (c *allChecker[T]) Check(notef func(key string, value any)) error {
 		// to say which element failed.
 		var notes []note
 		checker := c.elemChecker(iter.value())
-		setVerbosity(checker, c.verbosity())
 		err := checker.Check(
 			func(key string, val any) {
 				notes = append(notes, note{key, val})
@@ -673,7 +660,6 @@ func CodecEquals[T []byte | string](
 		marshal:   marshal,
 		unmarshal: unmarshal,
 		opts:      opts,
-		verbosity: testing.Verbose,
 	}
 }
 
@@ -682,7 +668,6 @@ type codecEqualChecker[T []byte | string] struct {
 	marshal   func(any) ([]byte, error)
 	unmarshal func([]byte, any) error
 	opts      []cmp.Option
-	verbosity
 }
 
 func (c *codecEqualChecker[T]) Check(note func(key string, value any)) error {
@@ -699,7 +684,6 @@ func (c *codecEqualChecker[T]) Check(note func(key string, value any)) error {
 		return fmt.Errorf("cannot unmarshal obtained contents: %v; %q", err, c.got)
 	}
 	cmpEq := CmpEquals(gotContentVal, wantContentVal, c.opts...).(*cmpEqualsChecker[any])
-	setVerbosity(cmpEq, c.verbosity())
 	return cmpEq.Check(note)
 }
 
@@ -772,14 +756,6 @@ func (c *errorIsChecker) Check(note func(key string, value any)) error {
 	return nil
 }
 
-type verbosity func() bool
-
-func (v *verbosity) setVerbose(verbose bool) {
-	*v = func() bool {
-		return verbose
-	}
-}
-
 // match checks that the given error message matches the given pattern.
 func match[StringOrRegexp string | *regexp.Regexp](got string, regex StringOrRegexp, msg string, note func(key string, value any)) error {
 	switch r := any(regex).(type) {
@@ -843,13 +819,5 @@ func valueAs[T any](v reflect.Value) (r T) {
 func F2[Got, Want any](cf func(got Got, want Want) Checker, want Want) func(got Got) Checker {
 	return func(got Got) Checker {
 		return cf(got, want)
-	}
-}
-
-// setVerbosity mutates the checker c to set its verbosity
-// if it supports that.
-func setVerbosity(c Checker, v bool) {
-	if c, ok := c.(interface{ setVerbose(bool) }); ok {
-		c.setVerbose(v)
 	}
 }

@@ -40,7 +40,7 @@ type Unquoted string
 // printed in non-verbose test runs if the value is too long.
 type SuppressedIfLong struct {
 	// Value holds the original annotated value.
-	Value interface{}
+	Value any
 }
 
 // longValueLines holds the number of lines after which a value is long.
