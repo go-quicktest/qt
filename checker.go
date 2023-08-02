@@ -135,7 +135,7 @@ func (c *cmpEqualsChecker[T]) Check(note func(key string, value any)) (err error
 		// structs with unexported fields and neither AllowUnexported nor
 		// cmpopts.IgnoreUnexported are provided.
 		if r := recover(); r != nil {
-			err = fmt.Errorf("%s", r)
+			err = BadCheckf("%s", r)
 		}
 	}()
 	if diff := cmp.Diff(c.got, c.want, c.opts...); diff != "" {
