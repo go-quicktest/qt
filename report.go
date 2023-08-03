@@ -40,7 +40,7 @@ type Unquoted string
 // printed in non-verbose test runs if the value is too long.
 type SuppressedIfLong struct {
 	// Value holds the original annotated value.
-	Value interface{}
+	Value any
 }
 
 // longValueLines holds the number of lines after which a value is long.
@@ -62,33 +62,40 @@ func report(err error, p reportParams) string {
 func writeError(w io.Writer, err error, p reportParams) {
 	ptrs := make(map[string]any)
 	values := make(map[string]string)
+
 	printPair := func(key string, value any) {
 		fmt.Fprintln(w, key+":")
 		var v string
+
 		if u, ok := value.(Unquoted); ok {
+			// Output the raw string without quotes.
 			v = string(u)
 		} else if s, ok := value.(SuppressedIfLong); ok {
+			// Check whether the output is too long and must be suppressed.
 			v = Format(s.Value)
 			if !testingVerbose() {
 				if n := strings.Count(v, "\n"); n > longValueLines {
-					v = fmt.Sprintf("<suppressed due to length (%d lines), use -v for full output>", n)
+					fmt.Fprint(w, prefixf(prefix, "<suppressed due to length (%d lines), use -v for full output>", n))
+					return
 				}
 			}
 		} else {
+			// Check whether the output has been already seen.
 			v = Format(value)
-		}
-		isPtr := reflect.ValueOf(value).Kind() == reflect.Pointer
-		if k := values[v]; k != "" {
-			if previousValue, ok := ptrs[k]; ok && isPtr && previousValue != value {
-				fmt.Fprint(w, prefixf(prefix, "<same as %q but different pointer value>", k))
+			isPtr := reflect.ValueOf(value).Kind() == reflect.Pointer
+			if k := values[v]; k != "" {
+				if previousValue, ok := ptrs[k]; ok && isPtr && previousValue != value {
+					fmt.Fprint(w, prefixf(prefix, "<same as %q but different pointer value>", k))
+					return
+				}
+				fmt.Fprint(w, prefixf(prefix, "<same as %q>", k))
 				return
 			}
-			fmt.Fprint(w, prefixf(prefix, "<same as %q>", k))
-			return
+			if isPtr {
+				ptrs[key] = value
+			}
 		}
-		if isPtr {
-			ptrs[key] = value
-		}
+
 		values[v] = key
 		fmt.Fprint(w, prefixf(prefix, "%s", v))
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -58,8 +59,7 @@ type OuterJSON struct {
 type boolean bool
 
 var (
-	targetErr       = &errTarget{msg: "target"}
-	targetNonPtrErr = &errTargetNonPtr{msg: "target"}
+	targetErr = &errTarget{msg: "target"}
 
 	goTime = time.Date(2012, 3, 28, 0, 0, 0, 0, time.UTC)
 	chInt  = func() chan int {
@@ -343,16 +343,6 @@ error:
   values are not deep equal
 diff (-got +want):
 %s
-`, diff(cmpEqualsGot, cmpEqualsWant)),
-}, {
-	about:   "DeepEquals: different values: verbose",
-	checker: qt.DeepEquals(cmpEqualsGot, cmpEqualsWant),
-	verbose: true,
-	expectedCheckFailure: fmt.Sprintf(`
-error:
-  values are not deep equal
-diff (-got +want):
-%s
 got:
   qt_test.cmpType{
       Strings: {
@@ -371,6 +361,132 @@ want:
   }
 `, diff(cmpEqualsGot, cmpEqualsWant)),
 }, {
+	about:   "DeepEquals: different values: long output",
+	checker: qt.DeepEquals([]any{cmpEqualsWant, cmpEqualsWant}, []any{cmpEqualsWant, cmpEqualsWant, 42}),
+	expectedCheckFailure: fmt.Sprintf(`
+error:
+  values are not deep equal
+diff (-got +want):
+%s
+got:
+  <suppressed due to length (15 lines), use -v for full output>
+want:
+  <suppressed due to length (16 lines), use -v for full output>
+`, diff([]any{cmpEqualsWant, cmpEqualsWant}, []any{cmpEqualsWant, cmpEqualsWant, 42})),
+}, {
+	about:   "DeepEquals: different values: long output and verbose",
+	checker: qt.DeepEquals([]any{cmpEqualsWant, cmpEqualsWant}, []any{cmpEqualsWant, cmpEqualsWant, 42}),
+	verbose: true,
+	expectedCheckFailure: fmt.Sprintf(`
+error:
+  values are not deep equal
+diff (-got +want):
+%s
+got:
+  []interface {}{
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+  }
+want:
+  []interface {}{
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+      int(42),
+  }
+`, diff([]any{cmpEqualsWant, cmpEqualsWant}, []any{cmpEqualsWant, cmpEqualsWant, 42})),
+}, {
+	about:   "CmpEquals: different values, long output",
+	checker: qt.CmpEquals([]any{cmpEqualsWant, "extra line 1", "extra line 2", "extra line 3"}, []any{cmpEqualsWant, "extra line 1"}),
+	expectedCheckFailure: fmt.Sprintf(`
+error:
+  values are not deep equal
+diff (-got +want):
+%s
+got:
+  <suppressed due to length (11 lines), use -v for full output>
+want:
+  []interface {}{
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+      "extra line 1",
+  }
+`, diff([]any{cmpEqualsWant, "extra line 1", "extra line 2", "extra line 3"}, []any{cmpEqualsWant, "extra line 1"})),
+}, {
+	about:   "CmpEquals: different values: long output and verbose",
+	checker: qt.CmpEquals([]any{cmpEqualsWant, "extra line 1", "extra line 2"}, []any{cmpEqualsWant, "extra line 1"}),
+	verbose: true,
+	expectedCheckFailure: fmt.Sprintf(`
+error:
+  values are not deep equal
+diff (-got +want):
+%s
+got:
+  []interface {}{
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+      "extra line 1",
+      "extra line 2",
+  }
+want:
+  []interface {}{
+      qt_test.cmpType{
+          Strings: {
+              "who",
+              "dalek",
+          },
+          Ints: {42},
+      },
+      "extra line 1",
+  }
+`, diff([]any{cmpEqualsWant, "extra line 1", "extra line 2"}, []any{cmpEqualsWant, "extra line 1"})),
+}, {
+	about:   "CmpEquals: different values, long output, same number of lines",
+	checker: qt.CmpEquals([]any{cmpEqualsWant, "extra line 1", "extra line 2", "extra line 3"}, []any{cmpEqualsWant, "extra line 1", "extra line 2", "extra line three"}),
+	expectedCheckFailure: fmt.Sprintf(`
+error:
+  values are not deep equal
+diff (-got +want):
+%s
+got:
+  <suppressed due to length (11 lines), use -v for full output>
+want:
+  <suppressed due to length (11 lines), use -v for full output>
+`, diff([]any{cmpEqualsWant, "extra line 1", "extra line 2", "extra line 3"}, []any{cmpEqualsWant, "extra line 1", "extra line 2", "extra line three"})),
+}, {
 	about:   "CmpEquals: same values with options",
 	checker: qt.CmpEquals([]int{1, 2, 3}, []int{3, 2, 1}, sameInts),
 	expectedNegateFailure: `
@@ -384,16 +500,6 @@ want:
 }, {
 	about:   "CmpEquals: different values with options",
 	checker: qt.CmpEquals([]int{1, 2, 4}, []int{3, 2, 1}, sameInts),
-	expectedCheckFailure: fmt.Sprintf(`
-error:
-  values are not deep equal
-diff (-got +want):
-%s
-`, diff([]int{1, 2, 4}, []int{3, 2, 1}, sameInts)),
-}, {
-	about:   "CmpEquals: different values with options: verbose",
-	checker: qt.CmpEquals([]int{1, 2, 4}, []int{3, 2, 1}, sameInts),
-	verbose: true,
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
@@ -416,13 +522,15 @@ want:
 	),
 	expectedCheckFailure: `
 error:
-  cannot handle unexported field at root.answer:
+  bad check: cannot handle unexported field at root.answer:
   	"github.com/go-quicktest/qt_test".(struct { answer int })
   consider using a custom Comparer; if you control the implementation of type, you can also consider using an Exporter, AllowUnexported, or cmpopts.IgnoreUnexported
-got:
-  struct { answer int }{answer:42}
-want:
-  <same as "got">
+`,
+	expectedNegateFailure: `
+error:
+  bad check: cannot handle unexported field at root.answer:
+  	"github.com/go-quicktest/qt_test".(struct { answer int })
+  consider using a custom Comparer; if you control the implementation of type, you can also consider using an Exporter, AllowUnexported, or cmpopts.IgnoreUnexported
 `,
 }, {
 	about: "CmpEquals: structs with unexported fields ignored",
@@ -585,6 +693,13 @@ error:
   values are not deep equal
 diff (-got +want):
 %s
+got:
+  []string{"bad", "wolf"}
+want:
+  []interface {}{
+      "bad",
+      "wolf",
+  }
 `, diff([]string{"bad", "wolf"}, []any{"bad", "wolf"})),
 }, {
 	about:   "Matches: perfect match",
@@ -655,6 +770,39 @@ error:
   bad check: cannot compile regexp: error parsing regexp: missing closing ): ` + "`^(()$`" + `
 regexp:
   "("
+`,
+}, {
+	about:   "Matches: match with pre-compiled regexp",
+	checker: qt.Matches("resistance is futile", regexp.MustCompile("resistance is (futile|useful)")),
+	expectedNegateFailure: `
+error:
+  unexpected success
+got value:
+  "resistance is futile"
+regexp:
+  s"resistance is (futile|useful)"
+`,
+}, {
+	about:   "Matches: mismatch with pre-compiled regexp",
+	checker: qt.Matches("resistance is cool", regexp.MustCompile("resistance is (futile|useful)")),
+	expectedCheckFailure: `
+error:
+  value does not match regexp
+got value:
+  "resistance is cool"
+regexp:
+  s"resistance is (futile|useful)"
+`,
+}, {
+	about:   "Matches: match with pre-compiled multi-line regexp",
+	checker: qt.Matches("line 1\nline 2", regexp.MustCompile(`line \d\nline \d`)),
+	expectedNegateFailure: `
+error:
+  unexpected success
+got value:
+  "line 1\nline 2"
+regexp:
+  s"line \\d\\nline \\d"
 `,
 }, {
 	about:   "ErrorMatches: perfect match",
@@ -741,6 +889,43 @@ got error:
   nil
 regexp:
   "some pattern"
+`,
+}, {
+	about:   "ErrorMatches: match with pre-compiled regexp",
+	checker: qt.ErrorMatches(errBadWolf, regexp.MustCompile("bad (wolf|dog)")),
+	expectedNegateFailure: `
+error:
+  unexpected success
+got error:
+  bad wolf
+    file:line
+regexp:
+  s"bad (wolf|dog)"
+`,
+}, {
+	about:   "ErrorMatches: match with pre-compiled multi-line regexp",
+	checker: qt.ErrorMatches(errBadWolfMultiLine, regexp.MustCompile(`bad (wolf|dog)\nfaulty (logic|statement)`)),
+	expectedNegateFailure: `
+error:
+  unexpected success
+got error:
+  bad wolf
+  faulty logic
+    file:line
+regexp:
+  s"bad (wolf|dog)\\nfaulty (logic|statement)"
+`,
+}, {
+	about:   "ErrorMatches: mismatch with pre-compiled regexp",
+	checker: qt.ErrorMatches(errBadWolf, regexp.MustCompile("good (wolf|dog)")),
+	expectedCheckFailure: `
+error:
+  error does not match regexp
+got error:
+  bad wolf
+    file:line
+regexp:
+  s"good (wolf|dog)"
 `,
 }, {
 	about:   "PanicMatches: perfect match",
@@ -836,6 +1021,45 @@ function:
   func() {...}
 regexp:
   ".*"
+`,
+}, {
+	about:   "PanicMatches: match with pre-compiled regexp",
+	checker: qt.PanicMatches(func() { panic("error: bad wolf") }, regexp.MustCompile("error: bad (wolf|dog)")),
+	expectedNegateFailure: `
+error:
+  unexpected success
+panic value:
+  "error: bad wolf"
+function:
+  func() {...}
+regexp:
+  s"error: bad (wolf|dog)"
+`,
+}, {
+	about:   "PanicMatches: match with pre-compiled multi-line regexp",
+	checker: qt.PanicMatches(func() { panic("error: bad wolf\nfaulty logic") }, regexp.MustCompile(`error: bad (wolf|dog)\nfaulty (logic|statement)`)),
+	expectedNegateFailure: `
+error:
+  unexpected success
+panic value:
+  "error: bad wolf\nfaulty logic"
+function:
+  func() {...}
+regexp:
+  s"error: bad (wolf|dog)\\nfaulty (logic|statement)"
+`,
+}, {
+	about:   "PanicMatches: mismatch with pre-compiled regexp",
+	checker: qt.PanicMatches(func() { panic("error: bad wolf") }, regexp.MustCompile("good (wolf|dog)")),
+	expectedCheckFailure: `
+error:
+  panic value does not match regexp
+panic value:
+  "error: bad wolf"
+function:
+  func() {...}
+regexp:
+  s"good (wolf|dog)"
 `,
 }, {
 	about:   "IsNil: nil",
@@ -1316,7 +1540,7 @@ want:
 `,
 }, {
 	about:   "All slice match",
-	checker: qt.SliceAll([]string{"red", "blue", "green"}, qt.F2(qt.Matches, ".*e.*")),
+	checker: qt.SliceAll([]string{"red", "blue", "green"}, qt.F2(qt.Matches[string], ".*e.*")),
 	expectedNegateFailure: `
 error:
   unexpected success
@@ -1329,7 +1553,7 @@ regexp:
 	about: "All nested match",
 	// TODO this is a bit awkward. Is there something we could do to improve it?
 	checker: qt.SliceAll([][]string{{"hello", "goodbye"}, {"red", "blue"}, {}}, func(elem []string) qt.Checker {
-		return qt.SliceAll(elem, qt.F2(qt.Matches, ".*e.*"))
+		return qt.SliceAll(elem, qt.F2(qt.Matches[string], ".*e.*"))
 	}),
 	expectedNegateFailure: `
 error:
@@ -1346,7 +1570,7 @@ regexp:
 }, {
 	about: "All nested mismatch",
 	checker: qt.SliceAll([][]string{{"hello", "goodbye"}, {"black", "blue"}, {}}, func(elem []string) qt.Checker {
-		return qt.SliceAll(elem, qt.F2(qt.Matches, ".*e.*"))
+		return qt.SliceAll(elem, qt.F2(qt.Matches[string], ".*e.*"))
 	}),
 	expectedCheckFailure: `
 error:
@@ -1360,7 +1584,7 @@ first mismatched element:
 `,
 }, {
 	about:   "All slice mismatch",
-	checker: qt.SliceAll([]string{"red", "black"}, qt.F2(qt.Matches, ".*e.*")),
+	checker: qt.SliceAll([]string{"red", "black"}, qt.F2(qt.Matches[string], ".*e.*")),
 	expectedCheckFailure: `
 error:
   mismatch at index 1
@@ -1372,17 +1596,21 @@ first mismatched element:
 }, {
 	about:   "All slice mismatch with DeepEqual",
 	checker: qt.SliceAll([][]string{{"a", "b"}, {"a", "c"}}, qt.F2(qt.DeepEquals[[]string], []string{"a", "b"})),
-	expectedCheckFailure: `
+	expectedCheckFailure: fmt.Sprintf(`
 error:
   mismatch at index 1
 error:
   values are not deep equal
 diff (-got +want):
-` + diff([]string{"a", "c"}, []string{"a", "b"}) + `
-`,
+%s
+got:
+  []string{"a", "c"}
+want:
+  []string{"a", "b"}
+`, diff([]string{"a", "c"}, []string{"a", "b"})),
 }, {
 	about:   "All mismatch with map",
-	checker: qt.MapAll(map[string]string{"a": "red", "b": "black"}, qt.F2(qt.Matches, ".*e.*")),
+	checker: qt.MapAll(map[string]string{"a": "red", "b": "black"}, qt.F2(qt.Matches[string], ".*e.*")),
 	expectedCheckFailure: `
 error:
   mismatch at key "b"
@@ -1498,6 +1726,14 @@ error:
   values are not deep equal
 diff (-got +want):
 %s
+got:
+  map[string]interface {}{
+      "NotThere": float64(1),
+  }
+want:
+  map[string]interface {}{
+      "First": float64(2),
+  }
 `, diff(map[string]any{"NotThere": 1.0}, map[string]any{"First": 2.0})),
 }, {
 	about:   "JSONEquals cannot unmarshal obtained value",
@@ -1731,16 +1967,21 @@ got:
 }}
 
 func TestCheckers(t *testing.T) {
+	original := qt.TestingVerbose
+	defer func() {
+		qt.TestingVerbose = original
+	}()
 	for _, test := range checkerTests {
+		*qt.TestingVerbose = func() bool {
+			return test.verbose
+		}
 		t.Run(test.about, func(t *testing.T) {
 			tt := &testingT{}
-			qt.SetVerbosity(test.checker, test.verbose)
 			ok := qt.Check(tt, test.checker)
 			checkResult(t, ok, tt.errorString(), test.expectedCheckFailure)
 		})
 		t.Run("Not "+test.about, func(t *testing.T) {
 			tt := &testingT{}
-			qt.SetVerbosity(test.checker, test.verbose)
 			ok := qt.Check(tt, qt.Not(test.checker))
 			checkResult(t, ok, tt.errorString(), test.expectedNegateFailure)
 		})

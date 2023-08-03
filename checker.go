@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
-	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -117,16 +116,14 @@ func DeepEquals[T any](got, want T) Checker {
 // set of compare options. See example for details.
 func CmpEquals[T any](got, want T, opts ...cmp.Option) Checker {
 	return &cmpEqualsChecker[T]{
-		argPair:   argPairOf(got, want),
-		opts:      opts,
-		verbosity: testing.Verbose,
+		argPair: argPairOf(got, want),
+		opts:    opts,
 	}
 }
 
 type cmpEqualsChecker[T any] struct {
 	argPair[T, T]
 	opts []cmp.Option
-	verbosity
 }
 
 func (c *cmpEqualsChecker[T]) Check(note func(key string, value any)) (err error) {
@@ -135,17 +132,15 @@ func (c *cmpEqualsChecker[T]) Check(note func(key string, value any)) (err error
 		// structs with unexported fields and neither AllowUnexported nor
 		// cmpopts.IgnoreUnexported are provided.
 		if r := recover(); r != nil {
-			err = fmt.Errorf("%s", r)
+			err = BadCheckf("%s", r)
 		}
 	}()
 	if diff := cmp.Diff(c.got, c.want, c.opts...); diff != "" {
 		// Only output values when the verbose flag is set.
-		if c.verbosity() {
-			note("diff (-got +want)", Unquoted(diff))
-			return errors.New("values are not deep equal")
-		}
 		note("error", Unquoted("values are not deep equal"))
 		note("diff (-got +want)", Unquoted(diff))
+		note("got", SuppressedIfLong{c.got})
+		note("want", SuppressedIfLong{c.want})
 		return ErrSilent
 	}
 	return nil
@@ -162,19 +157,22 @@ func ContentEquals[T any](got, want T) Checker {
 
 // Matches returns a Checker checking that the provided string matches the
 // provided regular expression pattern.
-func Matches(got, want string) Checker {
+func Matches[StringOrRegexp string | *regexp.Regexp](got string, want StringOrRegexp) Checker {
 	return &matchesChecker{
-		got:  got,
-		want: want,
+		got:   got,
+		want:  want,
+		match: newMatcher(want),
 	}
 }
 
 type matchesChecker struct {
-	got, want string
+	got   string
+	want  any
+	match matcher
 }
 
 func (c *matchesChecker) Check(note func(key string, value any)) error {
-	return match(c.got, c.want, "value does not match regexp", note)
+	return c.match(c.got, "value does not match regexp", note)
 }
 
 func (c *matchesChecker) Args() []Arg {
@@ -183,23 +181,25 @@ func (c *matchesChecker) Args() []Arg {
 
 // ErrorMatches returns a Checker checking that the provided value is an error
 // whose message matches the provided regular expression pattern.
-func ErrorMatches(got error, want string) Checker {
+func ErrorMatches[StringOrRegexp string | *regexp.Regexp](got error, want StringOrRegexp) Checker {
 	return &errorMatchesChecker{
-		got:  got,
-		want: want,
+		got:   got,
+		want:  want,
+		match: newMatcher(want),
 	}
 }
 
 type errorMatchesChecker struct {
-	got  error
-	want string
+	got   error
+	want  any
+	match matcher
 }
 
 func (c *errorMatchesChecker) Check(note func(key string, value any)) error {
 	if c.got == nil {
 		return errors.New("got nil error but want non-nil")
 	}
-	return match(c.got.Error(), c.want, "error does not match regexp", note)
+	return c.match(c.got.Error(), "error does not match regexp", note)
 }
 
 func (c *errorMatchesChecker) Args() []Arg {
@@ -208,16 +208,18 @@ func (c *errorMatchesChecker) Args() []Arg {
 
 // PanicMatches returns a Checker checking that the provided function panics
 // with a message matching the provided regular expression pattern.
-func PanicMatches(f func(), want string) Checker {
+func PanicMatches[StringOrRegexp string | *regexp.Regexp](f func(), want StringOrRegexp) Checker {
 	return &panicMatchesChecker{
-		got:  f,
-		want: want,
+		got:   f,
+		want:  want,
+		match: newMatcher(want),
 	}
 }
 
 type panicMatchesChecker struct {
-	got  func()
-	want string
+	got   func()
+	want  any
+	match matcher
 }
 
 func (c *panicMatchesChecker) Check(note func(key string, value any)) (err error) {
@@ -229,7 +231,7 @@ func (c *panicMatchesChecker) Check(note func(key string, value any)) (err error
 		}
 		msg := fmt.Sprint(r)
 		note("panic value", msg)
-		err = match(msg, c.want, "panic value does not match regexp", note)
+		err = c.match(msg, "panic value does not match regexp", note)
 	}()
 	c.got()
 	return nil
@@ -486,7 +488,6 @@ func SliceAny[T any](container []T, f func(elem T) Checker) Checker {
 		},
 		container:   container,
 		elemChecker: f,
-		verbosity:   testing.Verbose,
 	}
 }
 
@@ -504,7 +505,6 @@ func MapAny[K comparable, V any](container map[K]V, f func(elem V) Checker) Chec
 		},
 		container:   container,
 		elemChecker: f,
-		verbosity:   testing.Verbose,
 	}
 }
 
@@ -512,7 +512,6 @@ type anyChecker[T any] struct {
 	newIter     func() containerIter[T]
 	container   any
 	elemChecker func(T) Checker
-	verbosity
 }
 
 func (c *anyChecker[T]) Check(note func(key string, value any)) error {
@@ -523,7 +522,6 @@ func (c *anyChecker[T]) Check(note func(key string, value any)) error {
 		// one element in the container, the answer is probably yes,
 		// but let's leave it for now.
 		checker := c.elemChecker(iter.value())
-		setVerbosity(checker, c.verbosity())
 		err := checker.Check(
 			func(key string, value any) {},
 		)
@@ -563,7 +561,6 @@ func SliceAll[T any](container []T, f func(elem T) Checker) Checker {
 		},
 		container:   container,
 		elemChecker: f,
-		verbosity:   testing.Verbose,
 	}
 }
 
@@ -576,7 +573,6 @@ func MapAll[K comparable, V any](container map[K]V, f func(elem V) Checker) Chec
 		},
 		container:   container,
 		elemChecker: f,
-		verbosity:   testing.Verbose,
 	}
 }
 
@@ -584,7 +580,6 @@ type allChecker[T any] struct {
 	newIter     func() containerIter[T]
 	container   any
 	elemChecker func(T) Checker
-	verbosity
 }
 
 func (c *allChecker[T]) Check(notef func(key string, value any)) error {
@@ -594,7 +589,6 @@ func (c *allChecker[T]) Check(notef func(key string, value any)) error {
 		// to say which element failed.
 		var notes []note
 		checker := c.elemChecker(iter.value())
-		setVerbosity(checker, c.verbosity())
 		err := checker.Check(
 			func(key string, val any) {
 				notes = append(notes, note{key, val})
@@ -672,7 +666,6 @@ func CodecEquals[T []byte | string](
 		marshal:   marshal,
 		unmarshal: unmarshal,
 		opts:      opts,
-		verbosity: testing.Verbose,
 	}
 }
 
@@ -681,7 +674,6 @@ type codecEqualChecker[T []byte | string] struct {
 	marshal   func(any) ([]byte, error)
 	unmarshal func([]byte, any) error
 	opts      []cmp.Option
-	verbosity
 }
 
 func (c *codecEqualChecker[T]) Check(note func(key string, value any)) error {
@@ -698,7 +690,6 @@ func (c *codecEqualChecker[T]) Check(note func(key string, value any)) error {
 		return fmt.Errorf("cannot unmarshal obtained contents: %v; %q", err, c.got)
 	}
 	cmpEq := CmpEquals(gotContentVal, wantContentVal, c.opts...).(*cmpEqualsChecker[any])
-	setVerbosity(cmpEq, c.verbosity())
 	return cmpEq.Check(note)
 }
 
@@ -771,25 +762,31 @@ func (c *errorIsChecker) Check(note func(key string, value any)) error {
 	return nil
 }
 
-type verbosity func() bool
+type matcher = func(got string, msg string, note func(key string, value any)) error
 
-func (v *verbosity) setVerbose(verbose bool) {
-	*v = func() bool {
-		return verbose
+// newMatcher returns a matcher function that can be used by checkers when
+// checking that a string or an error matches the provided StringOrRegexp.
+func newMatcher[StringOrRegexp string | *regexp.Regexp](regex StringOrRegexp) matcher {
+	var re *regexp.Regexp
+	switch r := any(regex).(type) {
+	case string:
+		re0, err := regexp.Compile("^(" + r + ")$")
+		if err != nil {
+			return func(got string, msg string, note func(key string, value any)) error {
+				note("regexp", r)
+				return BadCheckf("cannot compile regexp: %s", err)
+			}
+		}
+		re = re0
+	case *regexp.Regexp:
+		re = r
 	}
-}
-
-// match checks that the given error message matches the given pattern.
-func match(got string, regex string, msg string, note func(key string, value any)) error {
-	matches, err := regexp.MatchString("^("+regex+")$", got)
-	if err != nil {
-		note("regexp", regex)
-		return BadCheckf("cannot compile regexp: %s", err)
+	return func(got string, msg string, note func(key string, value any)) error {
+		if re.MatchString(got) {
+			return nil
+		}
+		return errors.New(msg)
 	}
-	if matches {
-		return nil
-	}
-	return errors.New(msg)
 }
 
 func argPairOf[A, B any](a A, b B) argPair[A, B] {
@@ -835,13 +832,5 @@ func valueAs[T any](v reflect.Value) (r T) {
 func F2[Got, Want any](cf func(got Got, want Want) Checker, want Want) func(got Got) Checker {
 	return func(got Got) Checker {
 		return cf(got, want)
-	}
-}
-
-// setVerbosity mutates the checker c to set its verbosity
-// if it supports that.
-func setVerbosity(c Checker, v bool) {
-	if c, ok := c.(interface{ setVerbose(bool) }); ok {
-		c.setVerbose(v)
 	}
 }

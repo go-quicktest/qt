@@ -3,6 +3,6 @@
 package qt
 
 var (
-	Prefixf      = prefixf
-	SetVerbosity = setVerbosity
+	Prefixf        = prefixf
+	TestingVerbose = &testingVerbose
 )
