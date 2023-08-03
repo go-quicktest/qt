@@ -158,65 +158,71 @@ func ContentEquals[T any](got, want T) Checker {
 // Matches returns a Checker checking that the provided string matches the
 // provided regular expression pattern.
 func Matches[StringOrRegexp string | *regexp.Regexp](got string, want StringOrRegexp) Checker {
-	return &matchesChecker[StringOrRegexp]{
-		got:  got,
-		want: want,
+	return &matchesChecker{
+		got:   got,
+		want:  want,
+		match: newMatcher(want),
 	}
 }
 
-type matchesChecker[StringOrRegexp string | *regexp.Regexp] struct {
-	got  string
-	want StringOrRegexp
+type matchesChecker struct {
+	got   string
+	want  any
+	match matcher
 }
 
-func (c *matchesChecker[StringOrRegexp]) Check(note func(key string, value any)) error {
-	return match(c.got, c.want, "value does not match regexp", note)
+func (c *matchesChecker) Check(note func(key string, value any)) error {
+	return c.match(c.got, "value does not match regexp", note)
 }
 
-func (c *matchesChecker[StringOrRegexp]) Args() []Arg {
+func (c *matchesChecker) Args() []Arg {
 	return []Arg{{Name: "got value", Value: c.got}, {Name: "regexp", Value: c.want}}
 }
 
 // ErrorMatches returns a Checker checking that the provided value is an error
 // whose message matches the provided regular expression pattern.
 func ErrorMatches[StringOrRegexp string | *regexp.Regexp](got error, want StringOrRegexp) Checker {
-	return &errorMatchesChecker[StringOrRegexp]{
-		got:  got,
-		want: want,
+	return &errorMatchesChecker{
+		got:   got,
+		want:  want,
+		match: newMatcher(want),
 	}
 }
 
-type errorMatchesChecker[StringOrRegexp string | *regexp.Regexp] struct {
-	got  error
-	want StringOrRegexp
+type errorMatchesChecker struct {
+	got   error
+	want  any
+	match matcher
 }
 
-func (c *errorMatchesChecker[StringOrRegexp]) Check(note func(key string, value any)) error {
+func (c *errorMatchesChecker) Check(note func(key string, value any)) error {
 	if c.got == nil {
 		return errors.New("got nil error but want non-nil")
 	}
-	return match(c.got.Error(), c.want, "error does not match regexp", note)
+	return c.match(c.got.Error(), "error does not match regexp", note)
 }
 
-func (c *errorMatchesChecker[StringOrRegexp]) Args() []Arg {
+func (c *errorMatchesChecker) Args() []Arg {
 	return []Arg{{Name: "got error", Value: c.got}, {Name: "regexp", Value: c.want}}
 }
 
 // PanicMatches returns a Checker checking that the provided function panics
 // with a message matching the provided regular expression pattern.
 func PanicMatches[StringOrRegexp string | *regexp.Regexp](f func(), want StringOrRegexp) Checker {
-	return &panicMatchesChecker[StringOrRegexp]{
-		got:  f,
-		want: want,
+	return &panicMatchesChecker{
+		got:   f,
+		want:  want,
+		match: newMatcher(want),
 	}
 }
 
-type panicMatchesChecker[StringOrRegexp string | *regexp.Regexp] struct {
-	got  func()
-	want StringOrRegexp
+type panicMatchesChecker struct {
+	got   func()
+	want  any
+	match matcher
 }
 
-func (c *panicMatchesChecker[StringOrRegexp]) Check(note func(key string, value any)) (err error) {
+func (c *panicMatchesChecker) Check(note func(key string, value any)) (err error) {
 	defer func() {
 		r := recover()
 		if r == nil {
@@ -225,13 +231,13 @@ func (c *panicMatchesChecker[StringOrRegexp]) Check(note func(key string, value 
 		}
 		msg := fmt.Sprint(r)
 		note("panic value", msg)
-		err = match(msg, c.want, "panic value does not match regexp", note)
+		err = c.match(msg, "panic value does not match regexp", note)
 	}()
 	c.got()
 	return nil
 }
 
-func (c *panicMatchesChecker[StringOrRegexp]) Args() []Arg {
+func (c *panicMatchesChecker) Args() []Arg {
 	return []Arg{{Name: "function", Value: c.got}, {Name: "regexp", Value: c.want}}
 }
 
@@ -756,24 +762,31 @@ func (c *errorIsChecker) Check(note func(key string, value any)) error {
 	return nil
 }
 
-// match checks that the given error message matches the given pattern.
-func match[StringOrRegexp string | *regexp.Regexp](got string, regex StringOrRegexp, msg string, note func(key string, value any)) error {
+type matcher = func(got string, msg string, note func(key string, value any)) error
+
+// newMatcher returns a matcher function that can be used by checkers when
+// checking that a string or an error matches the provided StringOrRegexp.
+func newMatcher[StringOrRegexp string | *regexp.Regexp](regex StringOrRegexp) matcher {
+	var re *regexp.Regexp
 	switch r := any(regex).(type) {
 	case string:
-		matches, err := regexp.MatchString("^("+r+")$", got)
+		re0, err := regexp.Compile("^(" + r + ")$")
 		if err != nil {
-			note("regexp", regex)
-			return BadCheckf("cannot compile regexp: %s", err)
+			return func(got string, msg string, note func(key string, value any)) error {
+				note("regexp", r)
+				return BadCheckf("cannot compile regexp: %s", err)
+			}
 		}
-		if matches {
-			return nil
-		}
+		re = re0
 	case *regexp.Regexp:
-		if r.MatchString(got) {
+		re = r
+	}
+	return func(got string, msg string, note func(key string, value any)) error {
+		if re.MatchString(got) {
 			return nil
 		}
+		return errors.New(msg)
 	}
-	return errors.New(msg)
 }
 
 func argPairOf[A, B any](a A, b B) argPair[A, B] {
