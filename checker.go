@@ -156,7 +156,16 @@ func ContentEquals[T any](got, want T) Checker {
 }
 
 // Matches returns a Checker checking that the provided string matches the
-// provided regular expression pattern.
+// provided regular expression pattern. If want is a string, the pattern will be
+// anchored; that is:
+//
+//	Matches(got, "foo")
+//
+// is equivalent to:
+//
+//	Matches(got, "^foo$")
+//
+// If want is of type *regexp.Regexp, it will be matched as is.
 func Matches[StringOrRegexp string | *regexp.Regexp](got string, want StringOrRegexp) Checker {
 	return &matchesChecker{
 		got:   got,
@@ -180,7 +189,8 @@ func (c *matchesChecker) Args() []Arg {
 }
 
 // ErrorMatches returns a Checker checking that the provided value is an error
-// whose message matches the provided regular expression pattern.
+// whose message matches the provided regular expression pattern
+// (see [Matches] for more details on how the pattern is matched).
 func ErrorMatches[StringOrRegexp string | *regexp.Regexp](got error, want StringOrRegexp) Checker {
 	return &errorMatchesChecker{
 		got:   got,
@@ -208,6 +218,7 @@ func (c *errorMatchesChecker) Args() []Arg {
 
 // PanicMatches returns a Checker checking that the provided function panics
 // with a message matching the provided regular expression pattern.
+// (see [Matches] for more details on how the pattern is matched).
 func PanicMatches[StringOrRegexp string | *regexp.Regexp](f func(), want StringOrRegexp) Checker {
 	return &panicMatchesChecker{
 		got:   f,
