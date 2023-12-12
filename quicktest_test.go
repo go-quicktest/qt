@@ -266,6 +266,20 @@ func TestCAssertCheck(t *testing.T) {
 	}
 }
 
+func TestHelperCalls(t *testing.T) {
+	tt := &testingT{}
+	qt.Assert(tt, qt.IsTrue(false))
+	if tt.helperCalls < 2 {
+		t.Error("Assert doesn't invoke TB.Helper()")
+	}
+
+	tt = &testingT{}
+	qt.Check(tt, qt.IsTrue(false))
+	if tt.helperCalls < 2 {
+		t.Error("Check doesn't invoke TB.Helper()")
+	}
+}
+
 func checkResult(t *testing.T, ok bool, got, want string) {
 	t.Helper()
 	if want != "" {
