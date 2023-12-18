@@ -92,7 +92,7 @@ func Run(t *testing.T, suite any) {
 			}
 
 			sv := sv
-			if st.Kind() == reflect.Ptr {
+			if st.Kind() == reflect.Pointer {
 				sv1 := reflect.New(st.Elem())
 				sv1.Elem().Set(sv.Elem())
 				sv = sv1
