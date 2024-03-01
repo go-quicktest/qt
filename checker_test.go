@@ -137,7 +137,7 @@ want:
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not equal
-line diff (-got +want):
+line diff (-want +got):
 %s
 got:
   "a\nlong\nmultiline\nstring"
@@ -161,7 +161,7 @@ want:
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not equal
-line diff (-got +want):
+line diff (-want +got):
 %s
 got:
   "\nfoo"
@@ -341,7 +341,7 @@ want:
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
-diff (-got +want):
+diff (-want +got):
 %s
 got:
   qt_test.cmpType{
@@ -366,7 +366,7 @@ want:
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
-diff (-got +want):
+diff (-want +got):
 %s
 got:
   <suppressed due to length (15 lines), use -v for full output>
@@ -380,7 +380,7 @@ want:
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
-diff (-got +want):
+diff (-want +got):
 %s
 got:
   []interface {}{
@@ -424,7 +424,7 @@ want:
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
-diff (-got +want):
+diff (-want +got):
 %s
 got:
   <suppressed due to length (11 lines), use -v for full output>
@@ -447,7 +447,7 @@ want:
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
-diff (-got +want):
+diff (-want +got):
 %s
 got:
   []interface {}{
@@ -479,7 +479,7 @@ want:
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
-diff (-got +want):
+diff (-want +got):
 %s
 got:
   <suppressed due to length (11 lines), use -v for full output>
@@ -503,7 +503,7 @@ want:
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
-diff (-got +want):
+diff (-want +got):
 %s
 got:
   []int{1, 2, 4}
@@ -567,7 +567,7 @@ want:
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
-diff (-got +want):
+diff (-want +got):
 %s
 got:
   s"2012-03-29 00:00:00 +0000 UTC"
@@ -691,7 +691,7 @@ want:
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
-diff (-got +want):
+diff (-want +got):
 %s
 got:
   []string{"bad", "wolf"}
@@ -1601,7 +1601,7 @@ error:
   mismatch at index 1
 error:
   values are not deep equal
-diff (-got +want):
+diff (-want +got):
 %s
 got:
   []string{"a", "c"}
@@ -1724,7 +1724,7 @@ want:
 	expectedCheckFailure: fmt.Sprintf(`
 error:
   values are not deep equal
-diff (-got +want):
+diff (-want +got):
 %s
 got:
   map[string]interface {}{
@@ -1988,8 +1988,8 @@ func TestCheckers(t *testing.T) {
 	}
 }
 
-func diff(x, y any, opts ...cmp.Option) string {
-	d := cmp.Diff(x, y, opts...)
+func diff(got, want any, opts ...cmp.Option) string {
+	d := cmp.Diff(want, got, opts...)
 	return strings.TrimSuffix(qt.Prefixf("  ", "%s", d), "\n")
 }
 
