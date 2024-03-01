@@ -6,21 +6,20 @@ jobs:
     name: Build and Test
     strategy:
       matrix:
-        go: ['1.18.x', '1.19.x', '1.20.x']
+        go: ['1.18', '1.19', '1.20', '1.21']
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2.4.0
-    - uses: actions/setup-go@v2.1.5
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v4
       with:
         go-version: ${{ matrix.go }}
-        stable: false
-    - uses: actions/cache@v2.1.7
+    - uses: actions/cache@v3
       with:
         path: ~/go/pkg/mod
         key: ubuntu-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ubuntu-go-
     - name: Test
-      run: go test -race ./...
+      run: go test -mod readonly -race ./...
     - name: Test Verbose
-      run: go test -race -v ./...
+      run: go test -mod readonly -race -v ./...
