@@ -94,24 +94,24 @@ func TestCmpReportOutput(t *testing.T) {
 	}, {
 		AnInt: 47,
 	}, {
-		AnInt: 1,
-	}, {
 		AnInt: 2,
-	}}
+	}, {
+		AnInt: 1,
+	}, {}}
 	wantExamples := []*reportExample{{
 		AnInt: 42,
 	}, {
 		AnInt: 47,
 	}, {
-		AnInt: 2,
-	}, {
 		AnInt: 1,
-	}, {}}
+	}, {
+		AnInt: 2,
+	}}
 	qt.Assert(tt, qt.DeepEquals(gotExamples, wantExamples))
 	want := `
 error:
   values are not deep equal
-diff (-got +want):
+diff (-want +got):
     []*qt_test.reportExample{
             &{AnInt: 42},
             &{AnInt: 47},
@@ -124,16 +124,16 @@ got:
   []*qt_test.reportExample{
       &qt_test.reportExample{AnInt:42},
       &qt_test.reportExample{AnInt:47},
-      &qt_test.reportExample{AnInt:1},
       &qt_test.reportExample{AnInt:2},
+      &qt_test.reportExample{AnInt:1},
+      &qt_test.reportExample{},
   }
 want:
   []*qt_test.reportExample{
       &qt_test.reportExample{AnInt:42},
       &qt_test.reportExample{AnInt:47},
-      &qt_test.reportExample{AnInt:2},
       &qt_test.reportExample{AnInt:1},
-      &qt_test.reportExample{},
+      &qt_test.reportExample{AnInt:2},
   }
 stack:
   $file:110
