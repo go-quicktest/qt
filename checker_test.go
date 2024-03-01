@@ -1168,6 +1168,19 @@ want length:
   <same as "len(got)">
 `,
 }, {
+	about:   "HasLen: pointers to array with the same length",
+	checker: qt.HasLen(&[4]string{"these", "are", "the", "voyages"}, 4),
+	expectedNegateFailure: `
+error:
+  unexpected success
+len(got):
+  int(4)
+got:
+  &[4]string{"these", "are", "the", "voyages"}
+want length:
+  <same as "len(got)">
+`,
+}, {
 	about:   "HasLen: channels with the same length",
 	checker: qt.HasLen(chInt, 2),
 	expectedNegateFailure: fmt.Sprintf(`
@@ -1298,6 +1311,21 @@ error:
   bad check: first argument of type int has no length
 got:
   int(42)
+`,
+}, {
+	about:   "HasLen: pointer value without a length",
+	checker: qt.HasLen(&[]string{"arrays", "are", "fine", "but", "not", "slices"}, 1),
+	expectedCheckFailure: `
+error:
+  bad check: first argument of type *[]string has no length
+got:
+  &[]string{"arrays", "are", "fine", "but", "not", "slices"}
+`,
+	expectedNegateFailure: `
+error:
+  bad check: first argument of type *[]string has no length
+got:
+  &[]string{"arrays", "are", "fine", "but", "not", "slices"}
 `,
 }, {
 	about:   "Implements: implements interface",

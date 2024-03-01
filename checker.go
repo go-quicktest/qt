@@ -315,6 +315,15 @@ func (c *hasLenChecker[T]) Check(note func(key string, value any)) (err error) {
 	v := reflect.ValueOf(&c.got).Elem()
 	switch v.Kind() {
 	case reflect.Array, reflect.Chan, reflect.Map, reflect.Slice, reflect.String:
+	case reflect.Pointer:
+		// Allow a pointer to array.
+		if reflect.Indirect(reflect.ValueOf(c.got)).Kind() == reflect.Array {
+			break
+		}
+
+		// Error on all other pointers.
+		note("got", c.got)
+		return BadCheckf("first argument of type %v has no length", v.Type())
 	default:
 		note("got", c.got)
 		return BadCheckf("first argument of type %v has no length", v.Type())
@@ -344,8 +353,6 @@ type implementsChecker struct {
 	got  any
 	want reflect.Type
 }
-
-var emptyInterface = reflect.TypeOf((*any)(nil)).Elem()
 
 func (c *implementsChecker) Check(note func(key string, value any)) (err error) {
 	if c.got == nil {
@@ -723,7 +730,6 @@ func (c *errorAsChecker[T]) Check(note func(key string, value any)) (err error) 
 	if c.got == nil {
 		return errors.New("got nil error but want non-nil")
 	}
-	gotErr := c.got.(error)
 	defer func() {
 		// A panic is raised when the target is not a pointer to an interface
 		// or error.
@@ -735,7 +741,7 @@ func (c *errorAsChecker[T]) Check(note func(key string, value any)) (err error) 
 	if want == nil {
 		want = new(T)
 	}
-	if !errors.As(gotErr, want) {
+	if !errors.As(c.got, want) {
 		return errors.New("wanted type is not found in error chain")
 	}
 	return nil
@@ -822,7 +828,7 @@ func (p argPair[A, B]) Args() []Arg {
 // canBeNil reports whether a value or type of the given kind can be nil.
 func canBeNil(k reflect.Kind) bool {
 	switch k {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		return true
 	}
 	return false
