@@ -20,4 +20,4 @@ retract (
 	v0.0.3 // First retract attempt, that didn't work.
 )
 
-go 1.18
+go 1.19
