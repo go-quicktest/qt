@@ -3,7 +3,7 @@
 `go get github.com/go-quicktest/qt`
 
 Package qt provides a collection of Go helpers for writing tests. It uses generics,
-so requires Go 1.18 at least.
+so requires Go 1.19 at least.
 
 For a complete API reference, see the [package documentation](https://pkg.go.dev/github.com/go-quicktest/qt).
 
