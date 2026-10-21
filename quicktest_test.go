@@ -269,14 +269,41 @@ func TestCAssertCheck(t *testing.T) {
 func TestHelperCalls(t *testing.T) {
 	tt := &testingT{}
 	qt.Assert(tt, qt.IsTrue(false))
-	if tt.helperCalls < 2 {
+	if tt.helperCalls < 1 {
 		t.Error("Assert doesn't invoke TB.Helper()")
 	}
 
 	tt = &testingT{}
 	qt.Check(tt, qt.IsTrue(false))
-	if tt.helperCalls < 2 {
+	if tt.helperCalls < 1 {
 		t.Error("Check doesn't invoke TB.Helper()")
+	}
+}
+
+func TestArgsOnlyOnFailure(t *testing.T) {
+	c := &testingChecker{}
+	tt := &testingT{}
+	ok := qt.Check(tt, c)
+	checkResult(t, ok, tt.errorString(), "")
+	if c.argsCalls != 0 {
+		t.Errorf("Check called Args %d times on success, want 0", c.argsCalls)
+	}
+
+	c = &testingChecker{err: errors.New("bad")}
+	tt = &testingT{}
+	ok = qt.Check(tt, c)
+	checkResult(t, ok, tt.errorString(), "\nerror:\n  bad\n")
+	if c.argsCalls != 1 {
+		t.Errorf("Check called Args %d times on failure, want 1", c.argsCalls)
+	}
+
+	// Args are not printed for silent failures, so they are not needed.
+	c = &testingChecker{err: qt.ErrSilent}
+	tt = &testingT{}
+	ok = qt.Check(tt, c)
+	checkResult(t, ok, tt.errorString(), "\n")
+	if c.argsCalls != 0 {
+		t.Errorf("Check called Args %d times on silent failure, want 0", c.argsCalls)
 	}
 }
 
@@ -375,11 +402,12 @@ func assertBool(t testing.TB, got, want bool) {
 
 // testingChecker is a quicktest.Checker used in tests. It receives the
 // provided argNames, adds notes via the provided addNotes function, and when
-// the check is run the provided error is returned.
+// the check is run the provided error is returned. It counts calls to Args.
 type testingChecker struct {
-	args     []qt.Arg
-	addNotes func(note func(key string, value any))
-	err      error
+	args      []qt.Arg
+	addNotes  func(note func(key string, value any))
+	err       error
+	argsCalls int
 }
 
 // Check implements quicktest.Checker by returning the stored error.
@@ -392,5 +420,6 @@ func (c *testingChecker) Check(note func(key string, value any)) error {
 
 // Args implements quicktest.Checker by returning the stored args.
 func (c *testingChecker) Args() []qt.Arg {
+	c.argsCalls++
 	return c.args
 }

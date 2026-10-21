@@ -104,7 +104,7 @@ func (c *equalsChecker[T]) Check(note func(key string, value any)) (err error) {
 }
 
 // DeepEquals returns a Checker checking equality of two values
-// using cmp.DeepEqual.
+// using [cmp.Equal].
 func DeepEquals[T any](got, want T) Checker {
 	return CmpEquals(got, want)
 }

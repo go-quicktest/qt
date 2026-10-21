@@ -18,8 +18,9 @@ import (
 
 // reportParams holds parameters for reporting a test error.
 type reportParams struct {
-	// args holds all the arguments passed to the checker.
-	args []Arg
+	// checker holds the failed checker, used to print its arguments.
+	// It may be nil for errors from [BadCheckf], whose arguments are not printed.
+	checker Checker
 	// comments optionally holds comments passed when performing the check.
 	comments []Comment
 	// notes holds notes added while doing the check.
@@ -119,7 +120,7 @@ func writeError(w io.Writer, err error, p reportParams) {
 		return
 	}
 	// Write provided args.
-	for _, arg := range p.args {
+	for _, arg := range p.checker.Args() {
 		printPair(arg.Name, arg.Value)
 	}
 }
